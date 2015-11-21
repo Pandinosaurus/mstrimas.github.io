@@ -18,7 +18,7 @@ html {
 }
 
 body {
-	background: $white;
+	background: $background-color;
   font: 18px/1.4 $helvetica;
   color: $darkGray;
 }
@@ -200,7 +200,7 @@ img {
   letter-spacing: 1px;
 }
 
-.site-description {
+.site-tagline {
   margin: -5px 0 0 0;
   color: $gray;
   font-size: 16px;
@@ -278,12 +278,23 @@ nav {
   background-color: $lightGray;
 }
 
+
 footer {
-  padding: 20px 0;
+  color: $blue;
   text-align: center;
+  padding: 20px 0;
+  font-size: 20px;
+
+  a {
+    color: $blue;
+    &:focus,
+    &:hover {
+      color: darken($blue, 20%);
+    }
+  }
 }
+
 
 // Settled on moving the import of syntax highlighting to the bottom of the CSS
 // ... Otherwise it really bloats up the top of the CSS file and makes it difficult to find the start
-@import "highlights";
-@import "svg-icons";
+@import "syntax";

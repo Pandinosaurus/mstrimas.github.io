@@ -1,11 +1,15 @@
 ---
 layout: post
 title: Scale and numerical precision in RGEOS
+published: true
+excerpt: >
+  Exploring the unexpected results that can arise in GEOS topology operations 
+  from problems with numerical precision or registration in coordinates.
 category: Spatial
 tags: R Spatial GIS
 ---
 
-In this post, I explore the unexpected results that can arise in GEOS topology operations from problems with numerical precision or registration in coordinates. <!--more-->It is inspired by a discussion on [this R-sig-Geo thread](http://r-sig-geo.2731867.n2.nabble.com/gUnaryUnion-Not-Dissolving-Correctly-td7589145.html), especialy the comments provided by Roger Bivand.  
+In this post, I explore the unexpected results that can arise in GEOS topology operations from problems with numerical precision or registration in coordinates. It is inspired by a discussion on [this R-sig-Geo thread](http://r-sig-geo.2731867.n2.nabble.com/gUnaryUnion-Not-Dissolving-Correctly-td7589145.html), especialy the comments provided by Roger Bivand.  
 
 Many of these issues arise from challenges associated with comparing floating point numbers, a topic discussed in [R FAQ 7.31](https://cran.r-project.org/doc/FAQ/R-FAQ.html#Why-doesn_0027t-R-think-these-numbers-are-equal_003f). It is noted there that "the only numbers that can be represented exactly in R’s numeric type are integers...as a result, two floating point numbers will not reliably be equal unless they have been computed by the same algorithm". They provide the following example to illustate this:  
 
@@ -48,7 +52,7 @@ These `SpatialPolygons` objects share a boundary whose coordinates are identical
 
 ## `rgeos` Scale Factor  
 
-By default the `rgeos` scale factor is $$10^8$$, corresponding to a precision of $$10^{-8}$$, and points will be treated as equal if differences in their coordinates are smaller than this precision. The `rgeos` functions `setScale()` and `getScale()` can be used to change the scale or return the current scale, respectively.  
+By default the `rgeos` scale factor is \\( 10^8 \\), corresponding to a precision of \\( 10^{-8} \\), and points will be treated as equal if differences in their coordinates are smaller than this precision. The `rgeos` functions `setScale()` and `getScale()` can be used to change the scale or return the current scale, respectively.  
 
 ```{r default-scale}
 # ensure scale is set to the default  
@@ -68,7 +72,7 @@ gIntersects(p1, elide(p2, shift=c(1e-8, 0))) # shift = precision => FALSE
 gIntersects(p1, elide(p2, shift=c(1e-9, 0))) # shift < precision => TRUE
 ```
 
-Note that in the final case the coordinates only differ by $$10^{-9}$$, less than the precision ($$10^{8}$$), hence GEOS treats these coordinates as equal.  
+Note that in the final case the coordinates only differ by \\( 10^{-9} \\), less than the precision (\\( 10^{8} \\)), hence GEOS treats these coordinates as equal.  
 
 ### Union  
 
@@ -106,7 +110,7 @@ plot(p, col='transparent', border='black', add=T)
 plot(gIntersection(p1, p), border='orange', add=T, lty=2, lwd=3)
 ```
 
-However, if the amount of overlap is small enough that the difference in coordinates is below the precision ($$10^{8}$$), then the polygons are treated as having a shared boundary and the intersection returns a line.  
+However, if the amount of overlap is small enough that the difference in coordinates is below the precision (\\( 10^{8} \\)), then the polygons are treated as having a shared boundary and the intersection returns a line.  
 
 ```{r gi-small-overlap}
 # overlap > precision => polygon
@@ -139,7 +143,7 @@ class(gIntersection(p1, p))
 
 ### Change of scale factor  
 
-Changing the scale to $$10^4$$, so that precision is lower, shows how the behaviour demonstated above is influenced by the scale factor.  
+Changing the scale to \\( 10^4 \\), so that precision is lower, shows how the behaviour demonstated above is influenced by the scale factor.  
 
 ```{r low-precision}
 setScale(1e4)
@@ -172,7 +176,7 @@ Furthermore, to report on detected slivers `warnSlivers` must be set to `TRUE` u
 set_RGEOS_warnSlivers(TRUE)
 ```
 
-Now, polygons with small, but increasing amounts of overlap are intersected with sliver detection and reporting turned on. With the current parameters, precision is set to $$10^{-4}$$ and `polyThreshold` to $$10^{-2}$$.  
+Now, polygons with small, but increasing amounts of overlap are intersected with sliver detection and reporting turned on. With the current parameters, precision is set to \\( 10^{-4} \\) and `polyThreshold` to \\( 10^{-2} \\).  
 
 For overlap below the level of detection with the current precision, a line is returned and no sliver warnings are raised.  
 ```{r slive-line, collapse=F, comment=NA}
@@ -203,7 +207,7 @@ gArea(gi)
 set_RGEOS_polyThreshold(1e-3)
 ```
 
-With the threshold lowered from $$10^{-2}$$ to $$10^{-3}$$, `rgeos` is less sensitive to slivers. A horizontal shift of $$10^{-4}$$ still raises a sliver warning.  
+With the threshold lowered from \\( 10^{-2} \\) to \\( 10^{-3} \\), `rgeos` is less sensitive to slivers. A horizontal shift of \\( 10^{-4} \\) still raises a sliver warning.  
 
 ```{r slivers-lower-yes}
 gi <- gIntersection(p1, elide(p2, shift=c(-1e-4, 0)))
@@ -211,7 +215,7 @@ class(gi)
 gArea(gi)
 ```
 
-However, with a shift of $$10^{-3}$$, `rgoes` no longer treats the resulting polygon as a sliver since the area is above the new threshold. No warning is raised.  
+However, with a shift of \\( 10^{-3} \\), `rgoes` no longer treats the resulting polygon as a sliver since the area is above the new threshold. No warning is raised.  
 
 ```{r slivers-lower-no}
 gi <- gIntersection(p1, elide(p2, shift=c(-1e-3, 0)))
@@ -229,7 +233,7 @@ gArea(gi1)
 gArea(gi1) / get_RGEOS_polyThreshold()
 ```
 
-However, this need not be the case. Now a warning is raised because a slight shift in the vertical direction has caused the polygon resulting from the intersection to have area just less than the $$10^{-3}$$ threshold.  
+However, this need not be the case. Now a warning is raised because a slight shift in the vertical direction has caused the polygon resulting from the intersection to have area just less than the \\( 10^{-3} \\) threshold.  
 
 ```{r sliver-vert-shift}
 gi2 <- gIntersection(p1, elide(p2, shift=c(-1e-3, -1e-3)))

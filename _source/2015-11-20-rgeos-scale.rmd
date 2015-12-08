@@ -95,7 +95,8 @@ plot(gUnion(p1, elide(p2, shift=c(1e-9, 0))), col='lightgrey', axes=T)
 
 ```{r gi-line}
 class(gIntersection(p1, p2))
-plot(p1, col='lightblue', border='transparent', axes=T, xlim=c(0,2), ylim=c(0, 1))
+plot(p1, col='lightblue', border='transparent', axes=T, xlim=c(0,2), 
+     ylim=c(0, 1))
 plot(p2, col='transparent', border='black', add=T)
 plot(gIntersection(p1, p2), col='orange', add=T, lty=2, lwd=3)
 ```
@@ -105,7 +106,8 @@ If the two polygons overlap, then a polygon geometry results from their intersec
 ```{r gi-poly}
 p <- elide(p2, shift=c(-0.1, 0))
 class(gIntersection(p1, p))
-plot(p1, col='lightblue', border='transparent', axes=T, xlim=c(0,2), ylim=c(0, 1))
+plot(p1, col='lightblue', border='transparent', axes=T, xlim=c(0,2), 
+     ylim=c(0, 1))
 plot(p, col='transparent', border='black', add=T)
 plot(gIntersection(p1, p), border='orange', add=T, lty=2, lwd=3)
 ```
@@ -126,7 +128,8 @@ In contrast, if the two polygons are separated, such that they no longer interec
 ```{r gi-null}
 p <- elide(p2, shift=c(0.1, 0))
 class(gIntersection(p1, p))
-plot(p1, col='lightblue', border='transparent', axes=T, xlim=c(0,2.1), ylim=c(0, 1))
+plot(p1, col='lightblue', border='transparent', axes=T, xlim=c(0,2.1), 
+     ylim=c(0, 1))
 plot(p, col='transparent', border='black', add=T)
 ```
 
@@ -154,11 +157,14 @@ gIntersects(p1, elide(p2, shift=c(1e-5, 0)))
 plot(gUnion(p1, elide(p2, shift=c(1e-4, 0))), col='lightgrey', axes=T)
 plot(gUnion(p1, elide(p2, shift=c(1e-5, 0))), col='lightgrey', axes=T)
 
-class(gIntersection(p1, elide(p2, shift=c(-1e-4, 0)))) # overlap > precision => polygon
-class(gIntersection(p1, elide(p2, shift=c(-1e-5, 0)))) # overlap < precision => line
-class(gIntersection(p1, elide(p2, shift=c(1e-5, 0)))) # separation < precision => line
-class(gIntersection(p1, elide(p2, shift=c(1e-4, 0)))) # separation > precision => NULL
-
+# overlap > precision => polygon
+class(gIntersection(p1, elide(p2, shift=c(-1e-4, 0)))) 
+# overlap < precision => line
+class(gIntersection(p1, elide(p2, shift=c(-1e-5, 0)))) 
+# separation < precision => line
+class(gIntersection(p1, elide(p2, shift=c(1e-5, 0)))) 
+# separation > precision => NULL
+class(gIntersection(p1, elide(p2, shift=c(1e-4, 0)))) 
 ```
 
 ## Slivers  

@@ -26,7 +26,7 @@ knit_post <- function(source_rmd = '', overwrite = FALSE) {
     fig.width=8.5,
     fig.height=5.25,
     dev='svg',
-    comment='#',
+    comment='#>',
     tidy=FALSE,
     cache=FALSE,
     error=TRUE,

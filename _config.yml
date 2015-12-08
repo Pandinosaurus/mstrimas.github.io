@@ -1,24 +1,40 @@
+# --- Serving options --- #
+
 # Site settings
 title:                Matt Strimas-Mackey
-tagline:              R Development for Conservation
 description: >
-    I am a conservation biologist researching tropical land use change and
+    I am a conservation scientist researching tropical land use change and
     systematic conservation prioritization. I'm also interested in writing
     software to aid conservation decision making.
-avatar:               https://avatars1.githubusercontent.com/u/7296482?v=3&s=460
+avatar:               "https://avatars1.githubusercontent.com/u/7296482?v=3&s=460"
 baseurl:              ""
 url:                  "http://mstrimas.github.io"
 
-# Social details
-author:
-  name:               Matthew Strimas-Mackey
-  email:              strimas@zoology.ubc.ca
-  twitter:            StrimasMackey
-  github:             mstrimas
-  stackexchange:      26661
+# List of links in the navigation bar
+navbar-links:
+  Home:               ""
+  About:              "about"
+  Code:               "http://www.github.com/mstrimas"
 
-# Google Analytics
-# google_analytics:
+# Change all these values or delete the ones you don't want.
+# Important: you must keep the "name" parameter, everything else you can remove
+author:
+  name:               Matt Strimas-Mackey
+  email:              strimas@zoology.ubc.ca
+  github:             mstrimas
+  twitter:            StrimasMackey
+  stackoverflow:      "26661/matt-sm"
+
+# Select which links to show in the footer
+footer-links-active:
+  rss: false
+  facebook: false
+  email: true
+  twitter: true
+  github: true
+  linkedin: false
+  stackoverflow: true
+
 
 # Jekyll build settings
 permalink:            /:categories/:title/
@@ -27,14 +43,35 @@ markdown:             redcarpet
 redcarpet:
   extensions: ["no_intra_emphasis", "fenced_code_blocks", "autolink", "tables", "with_toc_data"]
 highlighter:          pygments
-excerpt_separator:    <!-- more -->
-sass:
-  sass_dir:           _sass
-  style:              :compressed
-# Exclude these files from your production _site
+excerpt_separator:    "<!-- more -->"
+paginate:             20
+timezone:             "America/Vancouver"
+
+# Default YAML values (more information on Jekyll's site)
+defaults:
+  -
+    scope:
+      path: ""
+      type: "posts"
+    values:
+      comments: true  # add comments to all blog posts
+  -
+    scope:
+      path: "" # all files
+    values:
+      layout: "default"
+
+# Exclude these files from production site
 exclude:
-    - Gemfile
-    - Gemfile.lock
-    - LICENSE
-    - README.md
-    - CNAME
+  - Gemfile
+  - Gemfile.lock
+  - LICENSE
+  - README.md
+  - CNAME
+  - mstrimas.github.com.Rproj
+  - .Rhistory
+  - .Rprofile
+  - .gitignore
+
+# Beautiful Jekyll / Dean Attali
+# 2fc73a3a967e97599c9763d05e564189

@@ -332,6 +332,10 @@ header.header-post .post-heading .post-subheading {
   border-bottom-left-radius: 5px;
 }
 
+article img {
+  max-width: 100%;
+}
+
 /* --- Pager --- */
 
 .pager li a {

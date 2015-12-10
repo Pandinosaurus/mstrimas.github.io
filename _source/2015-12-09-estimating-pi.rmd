@@ -1,0 +1,28 @@
+---
+layout: post
+title: Estimating pi with GIS and Monte Carlo
+published: false
+excerpt: >
+  Using Monte Carlo methods, randomly placed spatial objects, and topological 
+  operations in R to estimate pi.  
+category: Spatial
+tags: R Spatial GIS Monte-Carlo
+---
+
+```{r}
+library(sp)
+library(raster)
+library(rgeos)
+```
+
+While reading the Wikipedia page on [Monte Carlo methods](https://en.wikipedia.org/wiki/Monte_Carlo_method) recently I came across two interesting spatial approaches to estimating \\( \pi \\). Both involved random placing a large spatial objects in a place (points and lines, respetively), performing some topological operations (testing for containment and intersection, respectively), and summarizing over all spatial objects to estimate \\( \pi \\). While both approaches are probably more easily and efficiently done outside of a GIS, I thought it would be fun to try them using some of the spatial objects and spatial analyis tools in R.  
+
+## Monte Carlo Methods  
+
+## Incribed Circle Approach  
+
+## Buffon's Needle  
+
+https://en.wikipedia.org/wiki/Buffon%27s_needle
+
+

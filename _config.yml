@@ -12,7 +12,7 @@ url:                  "http://mstrimas.github.io"
 
 # List of links in the navigation bar
 navbar-links:
-  Home:               ""
+  Posts:              ""
   About:              "about"
   Code:               "http://www.github.com/mstrimas"
 

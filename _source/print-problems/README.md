@@ -20,7 +20,7 @@ Saving this plot interactively using Export button in RStudio with width and hei
 Saving with dev.print gives the same plot:  
 
 ```
-dev.print(png, 'data/dev-print-400x400.png', width = 400, height = 400)
+dev.print(png, 'dev-print-400x400.png', width = 400, height = 400)
 ```
 
 ![dev.print](dev-print-400x400.png)  
@@ -28,7 +28,7 @@ dev.print(png, 'data/dev-print-400x400.png', width = 400, height = 400)
 But, printing directly to `png()` device gives a huge amount of whitespace:  
 
 ```
-png('data/png-dev-400x400.png', width = 400, height = 400)
+png('png-dev-400x400.png', width = 400, height = 400)
 plot(square, axes = F)
 dev.off()
 ```

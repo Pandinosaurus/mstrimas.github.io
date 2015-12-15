@@ -1,19 +1,20 @@
 library(knitr)
-library(dplyr)
 options(stringsAsFactors = FALSE)
 options(knitr.table.format = 'markdown')
 
 # From: http://chepec.se/2014/07/16/knitr-jekyll.html
 
-knit_post <- function(source_rmd = '', overwrite = FALSE) {
+knit_post <- function(source_rmd = '', overwrite = FALSE, clean = TRUE) {
   # local directory of jekyll site
   site_path <- '/Users/matt/Documents/mstrimas.github.com/'
   # rmd directory (relative to base)
-  rmd_path <- file.path(site_path, '_source')
+  rmd_path <- file.path(site_path, '_source/')
   # relative directory of figures
   fig_url <- 'figures/'
   # directory for markdown output
-  posts_path <- paste0(site_path, '_posts')
+  posts_path <- file.path(site_path, '_posts/')
+  # knitr cache directory
+  cache_path <- file.path(rmd_path, 'cache/')
   
   # knitr options
   #knitr::render_jekyll(highlight = 'pygments')
@@ -22,9 +23,11 @@ knit_post <- function(source_rmd = '', overwrite = FALSE) {
     base.url='/',
     base.dir=site_path)
   knitr::opts_chunk$set(
+    cache.path=cache_path,
     fig.path=fig_url,
-    fig.width=8.5,
-    fig.height=5.25,
+    fig.align='center',
+    #fig.width=8.5,
+    #fig.height=5.25,
     dev='svg',
     comment='#>',
     tidy=FALSE,
@@ -35,6 +38,10 @@ knit_post <- function(source_rmd = '', overwrite = FALSE) {
     tidy=FALSE)
   
   if (source_rmd == '') {
+    if (clean) {
+      list.files(fig_path) %>% 
+        unlink
+    }
     files_rmd <- data.frame(rmd = list.files(
       path = rmd_path,
       full.names = TRUE,
@@ -67,4 +74,34 @@ knit_fig_path <- function(input, output, fig_path = 'figures/', ...) {
   knitr::opts_chunk$set(fig.path=fig_path)
   knitr::knit(input = input, output = output, ...)
   invisible()
+}
+
+# improved list of objects
+.ls.objects <- function (pos = 1, pattern, order.by,
+                         decreasing=FALSE, head=FALSE, n=5) {
+  napply <- function(names, fn) sapply(names, function(x)
+    fn(get(x, pos = pos)))
+  names <- ls(pos = pos, pattern = pattern)
+  obj.class <- napply(names, function(x) as.character(class(x))[1])
+  obj.mode <- napply(names, mode)
+  obj.type <- ifelse(is.na(obj.class), obj.mode, obj.class)
+  obj.prettysize <- napply(names, function(x) {
+    capture.output(format(utils::object.size(x), units = "auto")) })
+  obj.size <- napply(names, object.size)
+  obj.dim <- t(napply(names, function(x)
+    as.numeric(dim(x))[1:2]))
+  vec <- is.na(obj.dim)[, 1] & (obj.type != "function")
+  obj.dim[vec, 1] <- napply(names, length)[vec]
+  out <- data.frame(obj.type, obj.size, obj.prettysize, obj.dim)
+  names(out) <- c("Type", "Size", "PrettySize", "Rows", "Columns")
+  if (!missing(order.by))
+    out <- out[order(out[[order.by]], decreasing=decreasing), ]
+  if (head)
+    out <- head(out, n)
+  out
+}
+
+# shorthand
+lsos <- function(..., n=10) {
+  .ls.objects(..., order.by="Size", decreasing=TRUE, head=TRUE, n=n)
 }

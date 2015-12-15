@@ -8,7 +8,7 @@ description: >
     software to aid conservation decision making.
 avatar:               "https://avatars1.githubusercontent.com/u/7296482?v=3&s=460"
 baseurl:              ""
-url:                  "http://mstrimas.github.io"
+url:                  "http://strimas.com"
 
 # List of links in the navigation bar
 navbar-links:
@@ -72,6 +72,7 @@ exclude:
   - .Rhistory
   - .Rprofile
   - .gitignore
+  - cache
 
 # Beautiful Jekyll / Dean Attali
 # 2fc73a3a967e97599c9763d05e564189

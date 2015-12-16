@@ -62,7 +62,7 @@ plot(p2, col='blue', add=T)
 plot(elide(p2, shift=c(0.25, 0)), border='orange', add=T, lty=2, lwd=2)
 ```
 
-![plot of chunk example-data](/figures//2015-11-20-rgeos-scale_example-data-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_example-data-1.svg" title="plot of chunk example-data" alt="plot of chunk example-data" style="display: block; margin: auto;" />
 
 These `SpatialPolygons` objects share a boundary whose coordinates are identical. In what follows, the polygons will be translated by small amounts to examine how slight coordinate mismatches affect the topology operations of `rgeos`.  
 
@@ -130,13 +130,13 @@ Note that in the final case the coordinates only differ by \\( 10^{-9} \\), less
 plot(gUnion(p1, elide(p2, shift=c(0.1, 0))), col='lightgrey', axes=T)
 ```
 
-![plot of chunk gunion-nomerge](/figures//2015-11-20-rgeos-scale_gunion-nomerge-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_gunion-nomerge-1.svg" title="plot of chunk gunion-nomerge" alt="plot of chunk gunion-nomerge" style="display: block; margin: auto;" />
 
 ```r
 plot(gUnion(p1, elide(p2, shift=c(1e-8, 0))), col='lightgrey', axes=T)
 ```
 
-![plot of chunk gunion-nomerge](/figures//2015-11-20-rgeos-scale_gunion-nomerge-2.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_gunion-nomerge-2.svg" title="plot of chunk gunion-nomerge" alt="plot of chunk gunion-nomerge" style="display: block; margin: auto;" />
 
 However, if the difference in coordinates is too small to detect at the given precision, then the polygons are considered to be intersecting and are merged.  
 
@@ -145,7 +145,7 @@ However, if the difference in coordinates is too small to detect at the given pr
 plot(gUnion(p1, elide(p2, shift=c(1e-9, 0))), col='lightgrey', axes=T)
 ```
 
-![plot of chunk gunion-merge](/figures//2015-11-20-rgeos-scale_gunion-merge-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_gunion-merge-1.svg" title="plot of chunk gunion-merge" alt="plot of chunk gunion-merge" style="display: block; margin: auto;" />
 
 ### Intersection  
 
@@ -169,7 +169,7 @@ plot(p2, col='transparent', border='black', add=T)
 plot(gIntersection(p1, p2), col='orange', add=T, lty=2, lwd=3)
 ```
 
-![plot of chunk gi-line](/figures//2015-11-20-rgeos-scale_gi-line-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_gi-line-1.svg" title="plot of chunk gi-line" alt="plot of chunk gi-line" style="display: block; margin: auto;" />
 
 If the two polygons overlap, then a polygon geometry results from their intersection.   
 
@@ -192,7 +192,7 @@ plot(p, col='transparent', border='black', add=T)
 plot(gIntersection(p1, p), border='orange', add=T, lty=2, lwd=3)
 ```
 
-![plot of chunk gi-poly](/figures//2015-11-20-rgeos-scale_gi-poly-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_gi-poly-1.svg" title="plot of chunk gi-poly" alt="plot of chunk gi-poly" style="display: block; margin: auto;" />
 
 However, if the amount of overlap is small enough that the difference in coordinates is below the precision (\\( 10^{8} \\)), then the polygons are treated as having a shared boundary and the intersection returns a line.  
 
@@ -239,7 +239,7 @@ plot(p1, col='lightblue', border='transparent', axes=T, xlim=c(0,2.1),
 plot(p, col='transparent', border='black', add=T)
 ```
 
-![plot of chunk gi-null](/figures//2015-11-20-rgeos-scale_gi-null-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_gi-null-1.svg" title="plot of chunk gi-null" alt="plot of chunk gi-null" style="display: block; margin: auto;" />
 
 Again, the difference between coordinates relative to the precision determines the outcome of the intersection.  
 
@@ -293,13 +293,13 @@ gIntersects(p1, elide(p2, shift=c(1e-5, 0)))
 plot(gUnion(p1, elide(p2, shift=c(1e-4, 0))), col='lightgrey', axes=T)
 ```
 
-![plot of chunk low-precision](/figures//2015-11-20-rgeos-scale_low-precision-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_low-precision-1.svg" title="plot of chunk low-precision" alt="plot of chunk low-precision" style="display: block; margin: auto;" />
 
 ```r
 plot(gUnion(p1, elide(p2, shift=c(1e-5, 0))), col='lightgrey', axes=T)
 ```
 
-![plot of chunk low-precision](/figures//2015-11-20-rgeos-scale_low-precision-2.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_low-precision-2.svg" title="plot of chunk low-precision" alt="plot of chunk low-precision" style="display: block; margin: auto;" />
 
 ```r
 # overlap > precision => polygon
@@ -595,7 +595,7 @@ plot(p_a, col='lightgrey', axes=T, xlim=c(0,2.5), ylim=c(0,1))
 plot(p_b, border='orange', add=T, lty=2, lwd=3)
 ```
 
-![plot of chunk drop-slivers-ex](/figures//2015-11-20-rgeos-scale_drop-slivers-ex-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_drop-slivers-ex-1.svg" title="plot of chunk drop-slivers-ex" alt="plot of chunk drop-slivers-ex" style="display: block; margin: auto;" />
 
 With `dropSlivers` set to `FALSE`, both are returned.  
 
@@ -670,7 +670,7 @@ plot(rbind(p1, p3, p4), axes=T)
 plot(p2, add=T, col='red')
 ```
 
-![plot of chunk reset-params](/figures//2015-11-20-rgeos-scale_reset-params-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_reset-params-1.svg" title="plot of chunk reset-params" alt="plot of chunk reset-params" style="display: block; margin: auto;" />
 
 Now the the middle right (i.e. red) square is shifted to the right by increasing amounts. If the shift is below the precision, the misalignment of the middle edge is not picked up.  
 
@@ -682,7 +682,7 @@ guu <- gUnaryUnion(pp)
 plot(guu, col='lightgrey', axes=T)
 ```
 
-![plot of chunk sliver-union-no](/figures//2015-11-20-rgeos-scale_sliver-union-no-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_sliver-union-no-1.svg" title="plot of chunk sliver-union-no" alt="plot of chunk sliver-union-no" style="display: block; margin: auto;" />
 
 For a shift within the limts of precision, the misalignment of the middle edge is picked up and a very narrow hole appears in the resulting geometry. A warning is raised since this interior ring has area below the `polyThreshold`.    
 
@@ -701,7 +701,7 @@ guu <- gUnaryUnion(pp)
 plot(guu, col='lightgrey', axes=T)
 ```
 
-![plot of chunk sliver-union-warn](/figures//2015-11-20-rgeos-scale_sliver-union-warn-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_sliver-union-warn-1.svg" title="plot of chunk sliver-union-warn" alt="plot of chunk sliver-union-warn" style="display: block; margin: auto;" />
 
 However, for a larger shift, the hole persists, but no warning is raised since the area is now above the `polyThreshold`.  
 
@@ -712,7 +712,7 @@ pp <- rbind(p1, p3, p4, pshift)
 plot(gUnaryUnion(pp), col='lightgrey', axes=T)
 ```
 
-![plot of chunk sliver-union-no-warn](/figures//2015-11-20-rgeos-scale_sliver-union-no-warn-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_sliver-union-no-warn-1.svg" title="plot of chunk sliver-union-no-warn" alt="plot of chunk sliver-union-no-warn" style="display: block; margin: auto;" />
 
 The fact that this is a hole and not a vertical line becomes apparent when the shift is larger.  
 
@@ -723,7 +723,7 @@ pp <- rbind(p1, p3, p4, pshift)
 plot(gUnaryUnion(pp), col='lightgrey', axes=T)
 ```
 
-![plot of chunk sliver-union-big](/figures//2015-11-20-rgeos-scale_sliver-union-big-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_sliver-union-big-1.svg" title="plot of chunk sliver-union-big" alt="plot of chunk sliver-union-big" style="display: block; margin: auto;" />
 
 Finally, `set_RGEOS_dropSlivers()` can be used to repair the geometry by removing these interior slivers.  
 
@@ -742,7 +742,7 @@ guu <- gUnaryUnion(pp)
 plot(guu, col='lightgrey', axes=T)
 ```
 
-![plot of chunk sliver-union-drop](/figures//2015-11-20-rgeos-scale_sliver-union-drop-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_sliver-union-drop-1.svg" title="plot of chunk sliver-union-drop" alt="plot of chunk sliver-union-drop" style="display: block; margin: auto;" />
 
 ### Inward dangles  
 
@@ -758,7 +758,7 @@ guu <- gUnaryUnion(pp)
 plot(guu, col='lightgrey', axes=T)
 ```
 
-![plot of chunk dangle](/figures//2015-11-20-rgeos-scale_dangle-1.svg) 
+<img src="/figures//2015-11-20-rgeos-scale_dangle-1.svg" title="plot of chunk dangle" alt="plot of chunk dangle" style="display: block; margin: auto;" />
 
 Note that this dangle has no impact on the area of the resulting geometry, suggesting that it has zero area itself, which explains how it escapes detection.  
 

@@ -1,10 +1,11 @@
 library(knitr)
+library(magrittr)
 options(stringsAsFactors = FALSE)
 options(knitr.table.format = 'markdown')
 
 # From: http://chepec.se/2014/07/16/knitr-jekyll.html
 
-knit_post <- function(source_rmd = '', overwrite = FALSE, clean = TRUE) {
+knit_post <- function(source_rmd = '', overwrite = FALSE) {
   # local directory of jekyll site
   site_path <- '/Users/matt/Documents/mstrimas.github.com/'
   # rmd directory (relative to base)
@@ -26,8 +27,9 @@ knit_post <- function(source_rmd = '', overwrite = FALSE, clean = TRUE) {
     cache.path=cache_path,
     fig.path=fig_url,
     fig.align='center',
-    #fig.width=8.5,
-    #fig.height=5.25,
+    dpi=96,
+    fig.width=480/96,
+    fig.height=480/96,
     dev='svg',
     comment='#>',
     tidy=FALSE,
@@ -39,7 +41,7 @@ knit_post <- function(source_rmd = '', overwrite = FALSE, clean = TRUE) {
   
   if (source_rmd == '') {
     if (clean) {
-      list.files(fig_path) %>% 
+      list.files(fig_url) %>% 
         unlink
     }
     files_rmd <- data.frame(rmd = list.files(
@@ -48,17 +50,31 @@ knit_post <- function(source_rmd = '', overwrite = FALSE, clean = TRUE) {
       pattern = '\\.rmd$',
       ignore.case = TRUE,
       recursive = FALSE))
-    blah <- files_rmd %>% 
+    # create list of files to knit
+    file_df <- files_rmd %>% 
       dplyr::mutate(
         base_name = gsub('\\.rmd$', '', basename(rmd)),
         md = file.path(posts_path, paste0(base_name, '.md')),
         fig_path = file.path(fig_url, paste0(base_name, '_')),
         md_exists = file.exists(md),
         md_render = ifelse(md_exists, overwrite, TRUE)) %>% 
-      dplyr::filter(md_render) %>% 
+      dplyr::filter(md_render)
+    
+    if (nrow(file_df) == 0) {
+      return(invisible())
+    }
+    
+    # knit
+    file_df %>% 
       dplyr::select(rmd, md, fig_path) %>% 
       plyr::a_ply(1, transform, knit_fig_path(
         input = rmd, output = md, fig_path = fig_path, quiet = TRUE))
+    # trim png files - fix whitespace issue with sp::plot()
+    # mutate(file_df, 
+    #        trim = paste0('mogrify -trim ', 
+    #                      file.path(site_path, fig_path), '*.png')) %>% 
+    #   .$trim %>% 
+    #   l_ply(system, ignore.stderr = FALSE)
   } else {
     source_rmd <- file.path(rmd_path, source_rmd)
     stopifnot(file.exists(source_rmd))
@@ -66,6 +82,9 @@ knit_post <- function(source_rmd = '', overwrite = FALSE, clean = TRUE) {
     md_file <- file.path(posts_path, paste0(base_name, '.md'))
     fig_path <- file.path(fig_url, paste0(base_name, '_'))
     knit_fig_path(source_rmd, md_file, fig_path = fig_path, quiet = TRUE)
+    # trim png files - fix whitespace issue with sp::plot()
+    # paste0('mogrify -trim ', file.path(site_path, fig_path), '*.png') %>%
+    #  system
   }
   invisible()
 }

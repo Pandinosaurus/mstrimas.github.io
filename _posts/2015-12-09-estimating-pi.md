@@ -9,7 +9,8 @@ category: Spatial
 tags: R Spatial GIS Monte-Carlo
 ---
 
-```{r setup}
+
+```r
 library(sp)
 library(raster)
 library(rgdal)
@@ -51,8 +52,8 @@ To see where the area ratio of \\( \\pi / 4 \\) comes from, note that a square w
 
 First I draw a square with a circle inscribed.  
 
-```{r square-circle, echo=-1}
-par(mar=c(0, 0, 0, 0))
+
+```r
 square <- readWKT('POLYGON((-1 -1,-1 1,1 1,1 -1, -1 -1))')
 circle <- readWKT('POINT(0 0)') %>% 
   gBuffer(width = 1, quadsegs = 25)
@@ -60,12 +61,14 @@ plot(square, axes = F, border = '#FA6900', lwd = 2)
 plot(circle, add = T, col = '#69D2E7', border = 'transparent')
 ```
 
+<img src="/figures//2015-12-09-estimating-pi_square-circle-1.svg" title="plot of chunk square-circle" alt="plot of chunk square-circle" style="display: block; margin: auto;" />
+
 [Well-known Text](https://en.wikipedia.org/wiki/Well-known_text) is a simple markup language for representing vector geometries in plain text, and `rgeos::readWKT()` creates spatial objects based on a WKT strings. It's the easiest way I know of to quickly create simple geometries in R. To generate the circle I put a 1 unit buffer around a point. The `quadsegs` parameter in `rgeos::gBuffer()` sets the number of line segments to use to approximate a quarter circle, which is a measure of the smoothness of the buffering polygon. The default value of `quadsegs = 5` results in a circle with noticable edges, but `quadsegs = 25` seems to create a nice smooth circle.  
 
 Next I randomly sample a large number points within this square using `sp::spsample()`.  
 
-```{r spsample, echo=-1}
-par(mar=c(0, 0, 0, 0))
+
+```r
 n_pts <- 1000
 pts <- spsample(square, n_pts, type = 'random')
 plot(square, axes = F, border = '#FA6900', lwd = 2)
@@ -73,43 +76,83 @@ plot(circle, add = T, col = '#69D2E7', border = 'transparent')
 plot(pts, add = T, pch = 21, cex = 0.25, col = '#333333')
 ```
 
+<img src="/figures//2015-12-09-estimating-pi_spsample-1.svg" title="plot of chunk spsample" alt="plot of chunk spsample" style="display: block; margin: auto;" />
+
 There are a few ways to determine which of these points are within the circle. First, the function `over(x, y)` in the `sp` package gives the indexes of spatial object `y` at the spatial locations of object `x`. If a given feature in `x` is not contained within `y` `NA` is returned.  
 
-```{r over}
+
+```r
 over(pts, circle) %>% 
   {!is.na(.)} %>% 
   sum
 ```
 
+```
+#> [1] 768
+```
+
 Alternatively, the `sp` package offers an idiom of sorts to extract the features in one geometry that are within another geometry.  
 
-```{r idiom}
+
+```r
 (pts_within <- pts[circle, ])
+```
+
+```
+#> class       : SpatialPoints 
+#> features    : 768 
+#> extent      : -0.9738448, 0.9855762, -0.9905714, 0.981201  (xmin, xmax, ymin, ymax)
+#> coord. ref. : NA
+```
+
+```r
 length(pts_within)
+```
+
+```
+#> [1] 768
 ```
 
 In addition to these methods in the `sp` package, the `rgeos` package provides a more complete set of topological operations. `gIntersects()` tests if two geometries overlap, either overall (with `byid = F`) or at the level of individual features (with `byid = T`).  
 
-```{r gintersects}
+
+```r
 n_within <- gIntersects(pts, circle, byid = T) %>% 
   sum
 n_within
 ```
 
+```
+#> [1] 768
+```
+
 Finally, taking the ratio of points within the circle to total points and multiplying by 4, gives an estimate of \\( \\pi \\).  
 
-```{r crude-estimate}
+
+```r
 (pi_est <- 4 * n_within / n_pts)
+```
+
+```
+#> [1] 3.072
+```
+
+```r
 round(abs(100 * (pi_est / pi - 1)), 2)
 ```
 
-So, with `r n_pts` points I get an error of about `r round(abs(100 * (pi_est / pi - 1)), 2)`%; not too bad!  
+```
+#> [1] 2.22
+```
+
+So, with 1000 points I get an error of about 2.22%; not too bad!  
 
 ### Convergence  
 
 To see how the estimates from this approach converge to the true value of \\( \\pi \\), I repeat the process for dfferent numbers of points. First, I'll write a simple function to estimate pi based on a given number of points. Out of curiosity, I also time it.  
 
-```{r function}
+
+```r
 estimate_pi <- function(n_pts) {
   t <- system.time({
     square <- readWKT('POLYGON((-1 -1,-1 1,1 1,1 -1, -1 -1))')
@@ -125,9 +168,15 @@ estimate_pi <- function(n_pts) {
 estimate_pi(1e4)
 ```
 
+```
+#>   pi_estimate     t
+#> 1      3.1408 0.078
+```
+
 And I run this for a range of values of `n_pts`, estimating \\( \\pi \\) multiple times at each to get a sense of the variability.  
 
-```{r big-run, cache=T}
+
+```r
 n_values <- 10^(3:6)
 n_reps <- 10
 estimates <- expand.grid(n_values, 1:n_reps) %>% 
@@ -139,7 +188,8 @@ estimates <- expand.grid(n_values, 1:n_reps) %>%
 
 Plotting the results:  
 
-```{r pi-convergence}
+
+```r
 se <- function(x) {
   sd(x) / sqrt(length(x))
 }
@@ -159,6 +209,11 @@ ggplot(estimate_summary, aes(x = n_pts, y = pi_mean)) +
   geom_hline(aes(yintercept=pi), color = 'red', linetype = 'dashed') +
   scale_x_log10() +
   labs(x = 'Number of Points', y = expression(pi ~ estimate))
+```
+
+<img src="/figures//2015-12-09-estimating-pi_pi-convergence-1.svg" title="plot of chunk pi-convergence" alt="plot of chunk pi-convergence" style="display: block; margin: auto;" />
+
+```r
 # error
 ggplot(estimate_summary, aes(x = n_pts, y = error_mean)) +
   geom_point() +
@@ -167,6 +222,11 @@ ggplot(estimate_summary, aes(x = n_pts, y = error_mean)) +
   scale_x_log10() +
   scale_y_continuous(labels = percent, breaks = 0:6 * 0.01) +
   labs(x = 'Number of Points', y = 'Error')
+```
+
+<img src="/figures//2015-12-09-estimating-pi_pi-convergence-2.svg" title="plot of chunk pi-convergence" alt="plot of chunk pi-convergence" style="display: block; margin: auto;" />
+
+```r
 # times
 ggplot(estimate_summary, aes(x = n_pts, y = t_mean)) +
   geom_point() +
@@ -175,13 +235,16 @@ ggplot(estimate_summary, aes(x = n_pts, y = t_mean)) +
   labs(x = 'Number of Points', y = 'Execution Time (s)')
 ```
 
-So, with a million points, we get an error of `r round(100 * subset(estimate_summary, n_pts == 1e6)$error_mean, 4)`%; however, there is clearly an effect of diminishing returns: execution time increases linearly with number of points, but gains in precision are decreasing exponentially.  
+<img src="/figures//2015-12-09-estimating-pi_pi-convergence-3.svg" title="plot of chunk pi-convergence" alt="plot of chunk pi-convergence" style="display: block; margin: auto;" />
+
+So, with a million points, we get an error of 0.0813%; however, there is clearly an effect of diminishing returns: execution time increases linearly with number of points, but gains in precision are decreasing exponentially.  
 
 ### Alternate method using distance  
 
 In the above approach, the call to `gIntersects()` is the bottle neck for large numbers of points. An alternate approach that avoids this is to calculate the distance of each point from the origin and check is that distance is less that the radius of the circle (in this case 1). This is facilitated by the `gDistance()` function from the `rgeos` package, which calculates a pairwise distance matrix between features in two geometries when `byid = T`.  
 
-```{r distance}
+
+```r
 estimate_pi_distance <- function(n_pts) {
   t <- system.time({
     square <- readWKT('POLYGON((-1 -1,-1 1,1 1,1 -1, -1 -1))')
@@ -195,12 +258,26 @@ estimate_pi_distance <- function(n_pts) {
   return(data.frame(pi_estimate, t = t[['user.self']]))
 }
 estimate_pi_distance(1e5)
+```
+
+```
+#>   pi_estimate     t
+#> 1      3.1438 0.634
+```
+
+```r
 estimate_pi(1e5)
+```
+
+```
+#>   pi_estimate     t
+#> 1     3.13396 0.725
 ```
 
 For comparison, I estimate \\( \\pi \\) at a range of numbers of points as above.  
 
-```{r big-run-distance, cache=T}
+
+```r
 estimates_d <- expand.grid(n_values, 1:n_reps) %>% 
   setNames(c('n_pts', 'run')) %>% 
   tbl_df %>% 
@@ -210,7 +287,8 @@ estimates_d <- expand.grid(n_values, 1:n_reps) %>%
 
 Plotting the results:  
 
-```{r pi-convergence-distance}
+
+```r
 estimate_d_summary <- estimates_d %>% 
   mutate(pct_error = abs((pi_estimate / pi - 1))) %>% 
   group_by(n_pts) %>% 
@@ -229,7 +307,9 @@ ggplot(estimate_d_summary, aes(x = n_pts, y = pi_mean)) +
   labs(x = 'Number of Points', y = expression(pi ~ estimate))
 ```
 
-This method does seem to converge a bit better, with a million points, we get an error of `r round(100 * subset(estimate_d_summary, n_pts == 1e6)$error_mean, 4)`%.  
+<img src="/figures//2015-12-09-estimating-pi_pi-convergence-distance-1.svg" title="plot of chunk pi-convergence-distance" alt="plot of chunk pi-convergence-distance" style="display: block; margin: auto;" />
+
+This method does seem to converge a bit better, with a million points, we get an error of 0.0344%.  
 
 # Buffon's Needle  
 
@@ -254,7 +334,8 @@ $$
 
 To simulate this experiment in R, I set \\( l = 0.5 \\) and \\( t = 1 \\), which simplifies the esimate of \\( \\pi \\) to the ratio \\( N / n \\). First, I generate a minimal ruled plane and a needle dropping function.  
 
-```{r needle-setup}
+
+```r
 plane <- readWKT('POLYGON((-1 -1,-1 1,1 1,1 -1, -1 -1))')
 ruled_lines <- readWKT('MULTILINESTRING((-0.5 -1, -0.5 1),(0.5 -1, 0.5 1))')
 drop_needle <- function(n_needles, plane, l = 0.5) {
@@ -275,23 +356,45 @@ drop_needle(50, plane, l = 0.5) %>%
   plot(add = T, col = '#69D2E7', lwd = 1.5)
 ```
 
+<img src="/figures//2015-12-09-estimating-pi_needle-setup-1.svg" title="plot of chunk needle-setup" alt="plot of chunk needle-setup" style="display: block; margin: auto;" />
+
 Creating these needles (i.e. random line segments) is messier than I'd ideally like, but it gets the job done for now. Based on these spatial objects, I estimate \\( \\pi \\) for 1000 needles.  
 
-```{r needle-est}
+
+```r
 n_needles <- 1000
 needles <- drop_needle(n_needles, plane, l = 0.5)
 (n_cross <- sum(gIntersects(needles, ruled_lines, byid = T)))
+```
+
+```
+#> [1] 304
+```
+
+```r
 (pi_est <- n_needles / n_cross)
+```
+
+```
+#> [1] 3.289474
+```
+
+```r
 round(abs(100 * (pi_est / pi - 1)), 2)
 ```
 
-With `r n_needles` needles I get an error of about `r round(abs(100 * (pi_est / pi - 1)), 2)`%. So, this method is less precise than the circle method and it's also much slower due to the convoluted way I create the needles.  
+```
+#> [1] 4.71
+```
+
+With 1000 needles I get an error of about 4.71%. So, this method is less precise than the circle method and it's also much slower due to the convoluted way I create the needles.  
 
 ### Convergence  
 
 As before, I wrap all this into a function for estimating \\( \\pi \\).  
 
-```{r buffon-function}
+
+```r
 estimate_pi_needle <- function(n_needles) {
   t <- system.time({
     plane <- readWKT('POLYGON((-1 -1,-1 1,1 1,1 -1, -1 -1))')
@@ -305,9 +408,15 @@ estimate_pi_needle <- function(n_needles) {
 estimate_pi_needle(1000)
 ```
 
+```
+#>   pi_estimate     t
+#> 1    3.134796 1.222
+```
+
 And estimate \\( \\pi \\) for a range of parameters.  
 
-```{r big-run-needle, cache=T}
+
+```r
 n_values <- 10^(3:5)
 n_reps <- 10
 estimates_n <- expand.grid(n_values, 1:n_reps) %>% 
@@ -319,7 +428,8 @@ estimates_n <- expand.grid(n_values, 1:n_reps) %>%
 
 Then I plot the resulting estimates.  
 
-```{r pi-convergence-needle}
+
+```r
 estimate_n_summary <- estimates_n %>% 
   mutate(pct_error = abs((pi_estimate / pi - 1))) %>% 
   group_by(n_pts) %>% 
@@ -338,11 +448,14 @@ ggplot(estimate_n_summary, aes(x = n_pts, y = pi_mean)) +
   labs(x = 'Number of Needles', y = expression(pi ~ estimate))
 ```
 
+<img src="/figures//2015-12-09-estimating-pi_pi-convergence-needle-1.svg" title="plot of chunk pi-convergence-needle" alt="plot of chunk pi-convergence-needle" style="display: block; margin: auto;" />
+
 # Comparison of Methods  
 
 Lastly, I combine the results from all three approaches for comparison.  
 
-```{r comparison}
+
+```r
 comparison <- bind_rows(
   mutate(estimate_summary, method = 'Inscribed Circle'),
   mutate(estimate_d_summary, method = 'Distance'),
@@ -358,6 +471,11 @@ ggplot(comparison, aes(x = n_pts, y = pi_mean, color = method)) +
   scale_color_brewer(name = 'Method', palette = 'Set1') +
   labs(x = 'Number of Needles', y = expression(pi ~ estimate)) +
   theme(legend.position=c(0.75, 0.75))
+```
+
+<img src="/figures//2015-12-09-estimating-pi_comparison-1.svg" title="plot of chunk comparison" alt="plot of chunk comparison" style="display: block; margin: auto;" />
+
+```r
 # error
 ggplot(comparison, aes(x = n_pts, y = error_mean, color = method)) +
   geom_point() +
@@ -367,6 +485,11 @@ ggplot(comparison, aes(x = n_pts, y = error_mean, color = method)) +
   scale_color_brewer(name = 'Method', palette = 'Set1') +
   labs(x = 'Number of Points', y = 'Error') +
   theme(legend.position=c(0.75, 0.75))
+```
+
+<img src="/figures//2015-12-09-estimating-pi_comparison-2.svg" title="plot of chunk comparison" alt="plot of chunk comparison" style="display: block; margin: auto;" />
+
+```r
 # times
 ggplot(comparison, aes(x = n_pts, y = t_mean, color = method)) +
   geom_point() +
@@ -376,5 +499,7 @@ ggplot(comparison, aes(x = n_pts, y = t_mean, color = method)) +
   labs(x = 'Number of Points', y = 'Execution Time (s)') +
   theme(legend.position=c(0.75, 0.75))
 ```
+
+<img src="/figures//2015-12-09-estimating-pi_comparison-3.svg" title="plot of chunk comparison" alt="plot of chunk comparison" style="display: block; margin: auto;" />
 
 Clearly the needle method is way less efficient!  

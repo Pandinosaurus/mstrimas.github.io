@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Estimating pi with GIS and Monte Carlo
+title: Estimating pi with GIS and Monte Carlo methods in R
 published: true
 excerpt: >
   Using Monte Carlo methods, randomly placed spatial objects, and topological 
@@ -170,7 +170,7 @@ estimate_pi(1e4)
 
 ```
 #>   pi_estimate     t
-#> 1      3.1408 0.078
+#> 1      3.1408 0.082
 ```
 
 And I run this for a range of values of `n_pts`, estimating \\( \\pi \\) multiple times at each to get a sense of the variability.  
@@ -262,7 +262,7 @@ estimate_pi_distance(1e5)
 
 ```
 #>   pi_estimate     t
-#> 1      3.1438 0.634
+#> 1      3.1438 0.685
 ```
 
 ```r
@@ -271,7 +271,7 @@ estimate_pi(1e5)
 
 ```
 #>   pi_estimate     t
-#> 1     3.13396 0.725
+#> 1     3.13396 0.736
 ```
 
 For comparison, I estimate \\( \\pi \\) at a range of numbers of points as above.  
@@ -410,7 +410,7 @@ estimate_pi_needle(1000)
 
 ```
 #>   pi_estimate     t
-#> 1    3.134796 1.222
+#> 1    3.134796 1.156
 ```
 
 And estimate \\( \\pi \\) for a range of parameters.  

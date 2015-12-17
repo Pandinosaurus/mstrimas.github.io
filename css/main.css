@@ -178,6 +178,12 @@ img::-moz-selection {
   }
 }
 
+@media only screen and (max-width: 500px) {
+  .avatar-container {
+    display: none;
+  }
+}
+
 /* --- Footer --- */
 
 footer {

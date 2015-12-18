@@ -2,9 +2,10 @@
 layout: page
 title: About
 permalink: /about/
+include_avatar: false
 ---
 
-![me](/img/matt-grey.jpg)
+<img src="/img/matt-grey.jpg" alt="me" class="center" style=" width:80%;" />
 
 I'm a Vancouver-based conservation researcher currently working on a master's with [Jedediah Brodie](http://jedediahbrodie.weebly.com/) in the [Zoology Department](http://www.zoology.ubc.ca/) at UBC. My research focuses on the effects of human-induced land use change on ecosystems and how protected areas can be used as a tool to mitigate these negative impacts. Prior to this, I studied physics at the undergraduate and graduate levels, which I credit with shaping how I think and approach problems.  
 

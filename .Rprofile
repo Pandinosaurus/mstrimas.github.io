@@ -1,10 +1,13 @@
+if (file.exists('~/.Rprofile')) {
+  source('~/.Rprofile')
+}
+
 library(knitr)
 library(magrittr)
 options(stringsAsFactors = FALSE)
 options(knitr.table.format = 'markdown')
 
 # From: http://chepec.se/2014/07/16/knitr-jekyll.html
-
 knit_post <- function(source_rmd = '', overwrite = FALSE) {
   # local directory of jekyll site
   site_path <- '/Users/matt/Documents/mstrimas.github.com/'

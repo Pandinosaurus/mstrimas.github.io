@@ -238,7 +238,7 @@ Another approach for estimating \\( \\pi \\) that Wikipedia mentions is known as
 <p align='center'>
   <img src='https://upload.wikimedia.org/wikipedia/commons/f/f6/Buffon_needle.gif'
   alt="Buffon's Needle" />  
-</p
+</p>
 
 This approach is more mathematical than the above circle method. It is based on the following scenario: given a needle (i.e. a line) of length \\( l \\) randomly placed onto a plane ruled with parallel lines a distance \\( t \\) apart (see diagram), the probability that the needle will cross a line, given that \\( l < t \\), is:  
 

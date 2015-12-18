@@ -262,7 +262,7 @@ estimate_pi_distance(1e5)
 
 ```
 #>   pi_estimate     t
-#> 1      3.1438 0.685
+#> 1      3.1438 1.338
 ```
 
 ```r
@@ -271,7 +271,7 @@ estimate_pi(1e5)
 
 ```
 #>   pi_estimate     t
-#> 1     3.13396 0.736
+#> 1     3.13396 0.755
 ```
 
 For comparison, I estimate \\( \\pi \\) at a range of numbers of points as above.  
@@ -318,7 +318,7 @@ Another approach for estimating \\( \\pi \\) that Wikipedia mentions is known as
 <p align='center'>
   <img src='https://upload.wikimedia.org/wikipedia/commons/f/f6/Buffon_needle.gif'
   alt="Buffon's Needle" />  
-</p
+</p>
 
 This approach is more mathematical than the above circle method. It is based on the following scenario: given a needle (i.e. a line) of length \\( l \\) randomly placed onto a plane ruled with parallel lines a distance \\( t \\) apart (see diagram), the probability that the needle will cross a line, given that \\( l < t \\), is:  
 
@@ -410,7 +410,7 @@ estimate_pi_needle(1000)
 
 ```
 #>   pi_estimate     t
-#> 1    3.134796 1.156
+#> 1    3.134796 1.377
 ```
 
 And estimate \\( \\pi \\) for a range of parameters.  

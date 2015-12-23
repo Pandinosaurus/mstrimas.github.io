@@ -10,6 +10,20 @@ tags: R Spatial GIS Monte-Carlo
 ---
 
 
+
+While reading the Wikipedia page on [Monte Carlo methods](https://en.wikipedia.org/wiki/Monte_Carlo_method) recently I came across two interesting spatial approaches for estimating \\( \\pi \\). Both involve randomly placing a large number of spatial objects in a space (points and lines, respectively), performing some topological operations (testing for containment and intersection, respectively), and summarizing over all spatial objects to estimate \\( \\pi \\). While both approaches are probably more easily and efficiently done outside of a GIS, I thought it would be fun to try them using some of the spatial objects and spatial analyis tools in R.  
+
+## Monte Carlo Methods  
+
+The fact that I was reading about Monte Carlo on Wikipedia is a pretty good indication of the amount I know about these techniques (not much!). So, I'll resort to the concise definintion from [Wolfram](http://mathworld.wolfram.com/MonteCarloMethod.html):  
+
+> Any method which solves a problem by generating suitable random numbers and observing that fraction of the numbers obeying some property or properties.  
+
+This definition is a bit vague because the term encompasses a very broad class of algorithms spanning many disciplines. The key seems to be the use of repeated draws of random numbers from some probability distribution to solve a complex problem or simulate a complex system. I think the following examples will make this more concrete.  
+
+## Required packages  
+
+
 ```r
 library(sp)
 library(raster)
@@ -21,16 +35,6 @@ library(ggplot2)
 library(scales)
 set.seed(1)
 ```
-
-While reading the Wikipedia page on [Monte Carlo methods](https://en.wikipedia.org/wiki/Monte_Carlo_method) recently I came across two interesting spatial approaches for estimating \\( \\pi \\). Both involve randomly placing a large number of spatial objects in a space (points and lines, respectively), performing some topological operations (testing for containment and intersection, respectively), and summarizing over all spatial objects to estimate \\( \pi \\). While both approaches are probably more easily and efficiently done outside of a GIS, I thought it would be fun to try them using some of the spatial objects and spatial analyis tools in R.  
-
-## Monte Carlo Methods  
-
-The fact that I was reading about Monte Carlo on Wikipedia is a pretty good indication of the amount I know about these techniques (not much!). So, I'll resort to the concise definintion from [Wolfram](http://mathworld.wolfram.com/MonteCarloMethod.html):  
-
-> Any method which solves a problem by generating suitable random numbers and observing that fraction of the numbers obeying some property or properties.  
-
-This definition is a bit vague because the term encompasses a very broad class of algorithms spanning many disciplines. The key seems to be the use of repeated draws of random numbers from some probability distribution to solve a complex problem or simulate a complex system. I think the following examples will make this more concrete.  
 
 ## Incribed Circle Approach  
 
@@ -46,7 +50,7 @@ To see where the area ratio of \\( \\pi / 4 \\) comes from, note that a square w
 <p align='center'>
   <img src='https://upload.wikimedia.org/wikipedia/commons/8/84/Pi_30K.gif'
   alt='Inscribed circle approach' />  
-</p
+</p>
 
 ### R Implementation  
 
@@ -170,7 +174,7 @@ estimate_pi(1e4)
 
 ```
 #>   pi_estimate     t
-#> 1      3.1408 0.082
+#> 1      3.1408 0.087
 ```
 
 And I run this for a range of values of `n_pts`, estimating \\( \\pi \\) multiple times at each to get a sense of the variability.  
@@ -262,7 +266,7 @@ estimate_pi_distance(1e5)
 
 ```
 #>   pi_estimate     t
-#> 1      3.1438 1.338
+#> 1      3.1438 0.956
 ```
 
 ```r
@@ -271,7 +275,7 @@ estimate_pi(1e5)
 
 ```
 #>   pi_estimate     t
-#> 1     3.13396 0.755
+#> 1     3.13396 0.987
 ```
 
 For comparison, I estimate \\( \\pi \\) at a range of numbers of points as above.  
@@ -409,8 +413,8 @@ estimate_pi_needle(1000)
 ```
 
 ```
-#>   pi_estimate     t
-#> 1    3.134796 1.377
+#>   pi_estimate    t
+#> 1    3.134796 1.07
 ```
 
 And estimate \\( \\pi \\) for a range of parameters.  

@@ -20,7 +20,6 @@ navbar-links:
 # Important: you must keep the "name" parameter, everything else you can remove
 author:
   name:               Matt Strimas-Mackey
-  email:              strimas@zoology.ubc.ca
   github:             mstrimas
   twitter:            StrimasMackey
   stackoverflow:      "26661/matt-sm"

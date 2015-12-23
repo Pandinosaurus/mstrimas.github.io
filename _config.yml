@@ -9,6 +9,7 @@ description: >
 avatar:               "/img/avatar.png"
 baseurl:              ""
 url:                  "http://strimas.com/"
+google_analytics:     "UA-71616772-1"
 
 # Jekyll build settings
 permalink:            /:categories/:title/

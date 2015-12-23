@@ -1,5 +1,5 @@
 <head>
-  <!-- Meta -->
+  
   <meta charset="utf-8" />
   <meta content='text/html; charset=utf-8' http-equiv='Content-Type' />
   <meta http-equiv='X-UA-Compatible' content='IE=edge' />
@@ -7,6 +7,7 @@
   
   <title>{% if page.title %}{{ page.title }}{% else %}{{ site.title }}{% endif %}</title>
   
+  <!-- Meta -->
   <meta name="author" content="{{ site.author.name }}" />
   <link rel="shortcut icon" type="image/x-icon" href="/img/favicon.ico?" />
   {% if page.title %}
@@ -31,7 +32,7 @@
   
   <!-- CSS and icons -->
   <link rel="stylesheet" href="{{ site.baseurl }}/css/skeleton.css" />
-  <link rel="stylesheet" href="{{ site.baseurl }}/css/main.css" />
+  <link rel="stylesheet" href="{{ site.baseurl }}/css/style.css" />
   
   <!-- Fonts and icons-->
   <link href='//fonts.googleapis.com/css?family=Raleway:400,300,600' rel='stylesheet' type='text/css' />
@@ -42,4 +43,15 @@
   
   <!-- Search Optimization -->
   <link rel="canonical" href="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}" />
+  
+  <!-- Google Analytics -->
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', '{{ site.google_analytics }}', 'auto');
+  ga('send', 'pageview');
+  </script>
 </head>

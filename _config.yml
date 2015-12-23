@@ -9,6 +9,7 @@ description: >
 avatar:               "https://avatars1.githubusercontent.com/u/7296482?v=3&s=460"
 baseurl:              ""
 url:                  "http://strimas.com"
+google_analytics:     "UA-71616772-1"
 
 # List of links in the navigation bar
 navbar-links:

@@ -16,18 +16,10 @@
   box-sizing: border-box;
 }
 
-// For devices larger than 400px
-@media (#{$bp-larger-than-mobile}) {
+// Turn on grid for devices larger than 750px
+@media (#{$bp-larger-than-tablet}) {
   .container {
-    width: $container-width-larger-than-mobile;
     padding: 0;
-  }
-}
-
-// For devices larger than 550px
-@media (#{$bp-larger-than-phablet}) {
-  .container {
-    width: $container-width-larger-than-phablet;
   }
   .column,
   .columns {

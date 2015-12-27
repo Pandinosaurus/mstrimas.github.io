@@ -1,6 +1,16 @@
 ---
 ---
 
+@import "skeleton";
+
 a {
   text-decoration: none;
+}
+
+hr.short {
+  max-width: 15rem;
+  height: 0.2rem;
+  color: $dark-grey;
+  background-color: $dark-grey;
+  border: none;
 }

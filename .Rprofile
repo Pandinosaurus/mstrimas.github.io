@@ -40,7 +40,7 @@ knit_post <- function(source_rmd = '', overwrite = FALSE) {
     error=TRUE,
     warning=TRUE,
     message=FALSE,
-    tidy=FALSE)
+    collapse=TRUE)
   
   if (source_rmd == '') {
     if (clean) {

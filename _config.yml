@@ -10,6 +10,7 @@ avatar:               "/img/avatar.png"
 baseurl:              ""
 url:                  "http://strimas.com/"
 google_analytics:     "UA-71616772-1"
+github_repo: "https://github.com/mstrimas/mstrimas.github.io/"
 
 # Jekyll build settings
 permalink:            /:categories/:title/
@@ -30,6 +31,7 @@ navbar-links:
   About:              "about"
   Code:               "http://www.github.com/mstrimas"
 
+# Author information
 author:
   name:               Matt Strimas-Mackey
   email:              strimas@zoology.ubc.ca

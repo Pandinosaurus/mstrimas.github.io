@@ -9,8 +9,6 @@ category: web
 tags: r markdown
 ---
 
-
-
 This website is generated from [Markdown](https://en.wikipedia.org/wiki/Markdown) files using the static site generator [Jekyll](jekyllrb.com). When editing the templates and CSS that define how the Markdown files are converted to html, I use this document to see how all the various elements will appear in the browser. Pieces of this were adapted from [this cheatsheet](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet).
 
 # Paragraphs
@@ -50,9 +48,6 @@ My favourite foods:
 2. Spanakopite
 3. Poutine
 4. Donec congue, nisi id tincidunt finibus, sem risus accumsan quam, et cursus diam tellus eget lorem. Integer aliquam bibendum mi in tincidunt. Vestibulum sit amet convallis nibh.
-
-    Phasellus rutrum est sed urna lacinia varius. Pellentesque lobortis porttitor turpis, sit amet porttitor mauris aliquam ac. Donec scelerisque hendrerit velit dignissim tincidunt. Donec varius pharetra magna, sit amet consequat ex condimentum vel. Nulla sapien mauris, fringilla eget lectus sit amet, porttitor ultrices est. Nullam justo metus, viverra at tortor tempus, malesuada molestie nulla. Aliquam mattis a nisl et elementum.
-    
 5. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras accumsan, libero 
    nec facilisis rhoncus, velit turpis vestibulum orci, a pharetra nisi libero vel orci.
 
@@ -68,6 +63,7 @@ People in my family:
 - Sascha
 - Ezra
 - Rosie
+- Phasellus rutrum est sed urna lacinia varius. Pellentesque lobortis porttitor turpis, sit amet porttitor mauris aliquam ac. Donec scelerisque hendrerit velit dignissim tincidunt. Donec varius pharetra magna, sit amet consequat ex condimentum vel. Nulla sapien mauris, fringilla eget lectus sit amet, porttitor ultrices est. Nullam justo metus, viverra at tortor tempus, malesuada molestie nulla. Aliquam mattis a nisl et elementum.
 
 ## Nested lists
 
@@ -104,6 +100,7 @@ Inline snippets of `code` are placed between backticks. Code chunks can be "fenc
 ```
 
 ```r
+# This is a really really really long comment to see what happens when lines of code overflow box, will it wrap of scrolls???
 s <- "Hello World!"
 print(s)
 ```

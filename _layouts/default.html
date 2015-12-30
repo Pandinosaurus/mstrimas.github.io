@@ -5,13 +5,17 @@
   
   <body>
     
-    <div class="container">
+    {% include navbar.html %}
+    
+    <div class="container content">
       <div class="row">
         <div class="ten columns offset-by-one">
         {{ content }}
         </div>
       </div>
     </div>
-  
+    
+    {% include footer.html %}
+    
   </body>
 </html>

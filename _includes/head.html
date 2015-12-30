@@ -18,8 +18,8 @@
   <meta property="twitter:title" content="{{ site.title }}" />
   {% endif %}
   {% if page.excerpt %}
-  <meta name="description" content="{{ page.excerpt| strip_html }}" />
-  <meta property="og:description" content="{{ page.excerpt| strip_html }}" />
+  <meta name="description" content="{{ page.excerpt | strip_html }}" />
+  <meta property="og:description" content="{{ page.excerpt | strip_html }}" />
   {% else %}
   <meta name="description" content="{{ site.description }}">
   <meta property="og:description" content="{{ site.description }}" />
@@ -31,8 +31,7 @@
   {% endif %}
   
   <!-- CSS and icons -->
-  <link rel="stylesheet" href="{{ site.baseurl }}/css/skeleton.css" />
-  <link rel="stylesheet" href="{{ site.baseurl }}/css/style.css" />
+  <link rel="stylesheet" href="{{ "/css/main.css" | prepend: site.baseurl }}">
   
   <!-- Fonts and icons-->
   <link href='//fonts.googleapis.com/css?family=Raleway:400,300,600' rel='stylesheet' type='text/css' />

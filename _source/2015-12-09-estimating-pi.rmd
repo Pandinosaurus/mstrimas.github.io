@@ -5,9 +5,21 @@ published: true
 excerpt: >
   Using Monte Carlo methods, randomly placed spatial objects, and topological 
   operations in R to estimate pi  
-category: Spatial
-tags: R Spatial GIS Monte-Carlo
+category: spatial
+tags: r spatial gis monte-carlo
 ---
+
+While reading the Wikipedia page on [Monte Carlo methods](https://en.wikipedia.org/wiki/Monte_Carlo_method) recently I came across two interesting spatial approaches for estimating \\( \\pi \\). Both involve randomly placing a large number of spatial objects in a space (points and lines, respectively), performing some topological operations (testing for containment and intersection, respectively), and summarizing over all spatial objects to estimate \\( \\pi \\). While both approaches are probably more easily and efficiently done outside of a GIS, I thought it would be fun to try them using some of the spatial objects and spatial analysis tools in R.  
+
+# Monte Carlo Methods  
+
+The fact that I was reading about Monte Carlo on Wikipedia is a pretty good indication of the amount I know about these techniques (not much!). So, I'll resort to the concise definition from [Wolfram](http://mathworld.wolfram.com/MonteCarloMethod.html):  
+
+> Any method which solves a problem by generating suitable random numbers and observing that fraction of the numbers obeying some property or properties.  
+
+This definition is a bit vague because the term encompasses a very broad class of algorithms spanning many disciplines. The key seems to be the use of repeated draws of random numbers from some probability distribution to solve a complex problem or simulate a complex system. I think the following examples will make this more concrete.  
+
+## Required packages  
 
 ```{r setup}
 library(sp)
@@ -21,17 +33,7 @@ library(scales)
 set.seed(1)
 ```
 
-While reading the Wikipedia page on [Monte Carlo methods](https://en.wikipedia.org/wiki/Monte_Carlo_method) recently I came across two interesting spatial approaches for estimating \\( \\pi \\). Both involve randomly placing a large number of spatial objects in a space (points and lines, respectively), performing some topological operations (testing for containment and intersection, respectively), and summarizing over all spatial objects to estimate \\( \pi \\). While both approaches are probably more easily and efficiently done outside of a GIS, I thought it would be fun to try them using some of the spatial objects and spatial analyis tools in R.  
-
-## Monte Carlo Methods  
-
-The fact that I was reading about Monte Carlo on Wikipedia is a pretty good indication of the amount I know about these techniques (not much!). So, I'll resort to the concise definintion from [Wolfram](http://mathworld.wolfram.com/MonteCarloMethod.html):  
-
-> Any method which solves a problem by generating suitable random numbers and observing that fraction of the numbers obeying some property or properties.  
-
-This definition is a bit vague because the term encompasses a very broad class of algorithms spanning many disciplines. The key seems to be the use of repeated draws of random numbers from some probability distribution to solve a complex problem or simulate a complex system. I think the following examples will make this more concrete.  
-
-## Incribed Circle Approach  
+# Incribed Circle Approach  
 
 [Wikipedia](https://en.wikipedia.org/wiki/Monte_Carlo_method#Introduction) gives the following method for estimating \\( \\pi \\) as a simple example of a Monte Carlo method:  
 
@@ -40,14 +42,14 @@ This definition is a bit vague because the term encompasses a very broad class o
 3.  Count the number of points inside the circle and the total number of points.  
 4.  The ratio of the numbers of points will equal the ratio of the areas (i.e. \\( \\pi / 4 \\)), so multiplying this ratio by 4 will give an estimate of  \\( \\pi \\).  
 
-To see where the area ratio of \\( \\pi / 4 \\) comes from, note that a square with side length \\( s \\) has area \\( s^2 \\), and a circle incribed within this square will have radius \\( s / 2 \\) and hence area \\(s ^ 2 / 4 \\). The Wikipedia page has a nice animated visual representation of this technique:  
+To see where the area ratio of \\( \\pi / 4 \\) comes from, note that a square with side length \\( s \\) has area \\( s^2 \\), and a circle inscribed within this square will have radius \\( s / 2 \\) and hence area \\(s ^ 2 / 4 \\). The Wikipedia page has a nice animated visual representation of this technique:  
 
 <p align='center'>
   <img src='https://upload.wikimedia.org/wikipedia/commons/8/84/Pi_30K.gif'
   alt='Inscribed circle approach' />  
-</p
+</p>
 
-### R Implementation  
+## R Implementation  
 
 First I draw a square with a circle inscribed.  
 
@@ -60,7 +62,7 @@ plot(square, axes = F, border = '#FA6900', lwd = 2)
 plot(circle, add = T, col = '#69D2E7', border = 'transparent')
 ```
 
-[Well-known Text](https://en.wikipedia.org/wiki/Well-known_text) is a simple markup language for representing vector geometries in plain text, and `rgeos::readWKT()` creates spatial objects based on a WKT strings. It's the easiest way I know of to quickly create simple geometries in R. To generate the circle I put a 1 unit buffer around a point. The `quadsegs` parameter in `rgeos::gBuffer()` sets the number of line segments to use to approximate a quarter circle, which is a measure of the smoothness of the buffering polygon. The default value of `quadsegs = 5` results in a circle with noticable edges, but `quadsegs = 25` seems to create a nice smooth circle.  
+[Well-known Text](https://en.wikipedia.org/wiki/Well-known_text) is a simple markup language for representing vector geometries in plain text, and `rgeos::readWKT()` creates spatial objects based on a WKT strings. It's the easiest way I know of to quickly create simple geometries in R. To generate the circle I put a 1 unit buffer around a point. The `quadsegs` parameter in `rgeos::gBuffer()` sets the number of line segments to use to approximate a quarter circle, which is a measure of the smoothness of the buffering polygon. The default value of `quadsegs = 5` results in a circle with noticeable edges, but `quadsegs = 25` seems to create a nice smooth circle.  
 
 Next I randomly sample a large number points within this square using `sp::spsample()`.  
 
@@ -105,9 +107,9 @@ round(abs(100 * (pi_est / pi - 1)), 2)
 
 So, with `r n_pts` points I get an error of about `r round(abs(100 * (pi_est / pi - 1)), 2)`%; not too bad!  
 
-### Convergence  
+## Convergence  
 
-To see how the estimates from this approach converge to the true value of \\( \\pi \\), I repeat the process for dfferent numbers of points. First, I'll write a simple function to estimate pi based on a given number of points. Out of curiosity, I also time it.  
+To see how the estimates from this approach converge to the true value of \\( \\pi \\), I repeat the process for different numbers of points. First, I'll write a simple function to estimate pi based on a given number of points. Out of curiosity, I also time it.  
 
 ```{r function}
 estimate_pi <- function(n_pts) {
@@ -175,9 +177,9 @@ ggplot(estimate_summary, aes(x = n_pts, y = t_mean)) +
   labs(x = 'Number of Points', y = 'Execution Time (s)')
 ```
 
-So, with a million points, we get an error of `r round(100 * subset(estimate_summary, n_pts == 1e6)$error_mean, 4)`%; however, there is clearly an effect of diminishing returns: execution time increases linearly with number of points, but gains in precision are decreasing exponentially.  
+So, with a million points, I get an error of `r round(100 * subset(estimate_summary, n_pts == 1e6)$error_mean, 4)`%; however, there is clearly an effect of diminishing returns: execution time increases linearly with number of points, but gains in precision are decreasing exponentially.  
 
-### Alternate method using distance  
+## Alternate method using distance  
 
 In the above approach, the call to `gIntersects()` is the bottle neck for large numbers of points. An alternate approach that avoids this is to calculate the distance of each point from the origin and check is that distance is less that the radius of the circle (in this case 1). This is facilitated by the `gDistance()` function from the `rgeos` package, which calculates a pairwise distance matrix between features in two geometries when `byid = T`.  
 
@@ -252,7 +254,7 @@ $$
 \pi \approx {\frac{2lN}{tn}}
 $$
 
-To simulate this experiment in R, I set \\( l = 0.5 \\) and \\( t = 1 \\), which simplifies the esimate of \\( \\pi \\) to the ratio \\( N / n \\). First, I generate a minimal ruled plane and a needle dropping function.  
+To simulate this experiment in R, I set \\( l = 0.5 \\) and \\( t = 1 \\), which simplifies the estimate of \\( \\pi \\) to the ratio \\( N / n \\). First, I generate a minimal ruled plane and a needle dropping function.  
 
 ```{r needle-setup}
 plane <- readWKT('POLYGON((-1 -1,-1 1,1 1,1 -1, -1 -1))')
@@ -287,7 +289,7 @@ round(abs(100 * (pi_est / pi - 1)), 2)
 
 With `r n_needles` needles I get an error of about `r round(abs(100 * (pi_est / pi - 1)), 2)`%. So, this method is less precise than the circle method and it's also much slower due to the convoluted way I create the needles.  
 
-### Convergence  
+## Convergence  
 
 As before, I wrap all this into a function for estimating \\( \\pi \\).  
 

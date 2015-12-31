@@ -97,7 +97,7 @@ Inline snippets of `code` are placed between backticks. Code chunks can be fence
 ```
 
 ```r
-# This is a really really really long comment to see what happens when lines of code overflow box, will it wrap of scrolls???
+# This is a really really really long comment to see what happens when lines of code overflow box, will it wrap of scroll???
 s <- "Hello World!"
 print(s)
 ```

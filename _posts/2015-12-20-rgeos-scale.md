@@ -17,8 +17,17 @@ Many of these issues arise from challenges associated with comparing floating po
 ```r
 a <- sqrt(2)
 a * a == 2
+```
+
+```
 #> [1] FALSE
+```
+
+```r
 a * a - 2
+```
+
+```
 #> [1] 4.440892e-16
 ```
 
@@ -66,6 +75,9 @@ By default the `rgeos` scale factor is \\( 10^8 \\), corresponding to a precisio
 # ensure scale is set to the default  
 setScale(1e8)
 getScale()
+```
+
+```
 #> [1] 1e+08
 ```
 
@@ -76,13 +88,34 @@ getScale()
 
 ```r
 gIntersects(p1, p2)
+```
+
+```
 #> [1] TRUE
+```
+
+```r
 # squares offset => no longer share an edge
 gIntersects(p1, elide(p2, shift=c(0.1, 0))) # shift > precision => FALSE
+```
+
+```
 #> [1] FALSE
+```
+
+```r
 gIntersects(p1, elide(p2, shift=c(1e-8, 0))) # shift = precision => FALSE
+```
+
+```
 #> [1] FALSE
+```
+
+```r
 gIntersects(p1, elide(p2, shift=c(1e-9, 0))) # shift < precision => TRUE
+```
+
+```
 #> [1] TRUE
 ```
 
@@ -121,9 +154,15 @@ plot(gUnion(p1, elide(p2, shift=c(1e-9, 0))), col='lightgrey', axes=T)
 
 ```r
 class(gIntersection(p1, p2))
+```
+
+```
 #> [1] "SpatialLines"
 #> attr(,"package")
 #> [1] "sp"
+```
+
+```r
 plot(p1, col='lightblue', border='transparent', axes=T, xlim=c(0,2), 
      ylim=c(0, 1))
 plot(p2, col='transparent', border='black', add=T)
@@ -138,9 +177,15 @@ If the two polygons overlap, then a polygon geometry results from their intersec
 ```r
 p <- elide(p2, shift=c(-0.1, 0))
 class(gIntersection(p1, p))
+```
+
+```
 #> [1] "SpatialPolygons"
 #> attr(,"package")
 #> [1] "sp"
+```
+
+```r
 plot(p1, col='lightblue', border='transparent', axes=T, xlim=c(0,2), 
      ylim=c(0, 1))
 plot(p, col='transparent', border='black', add=T)
@@ -156,12 +201,21 @@ However, if the amount of overlap is small enough that the difference in coordin
 # overlap > precision => polygon
 p <- elide(p2, shift=c(-1e-8, 0))
 class(gIntersection(p1, p)) 
+```
+
+```
 #> [1] "SpatialPolygons"
 #> attr(,"package")
 #> [1] "sp"
+```
+
+```r
 # overlap < precision => line
 p <- elide(p2, shift=c(-1e-9, 0))
 class(gIntersection(p1, p)) 
+```
+
+```
 #> [1] "SpatialLines"
 #> attr(,"package")
 #> [1] "sp"
@@ -173,7 +227,13 @@ In contrast, if the two polygons are separated, such that they no longer interse
 ```r
 p <- elide(p2, shift=c(0.1, 0))
 class(gIntersection(p1, p))
+```
+
+```
 #> [1] "NULL"
+```
+
+```r
 plot(p1, col='lightblue', border='transparent', axes=T, xlim=c(0,2.1), 
      ylim=c(0, 1))
 plot(p, col='transparent', border='black', add=T)
@@ -188,10 +248,19 @@ Again, the difference between coordinates relative to the precision determines t
 # separation > precision => no overlap => NULL
 p <- elide(p2, shift=c(1e-8, 0))
 class(gIntersection(p1, p)) 
+```
+
+```
 #> [1] "NULL"
+```
+
+```r
 # separation < precision => shared edge => line
 p <- elide(p2, shift=c(1e-9, 0))
 class(gIntersection(p1, p)) 
+```
+
+```
 #> [1] "SpatialLines"
 #> attr(,"package")
 #> [1] "sp"
@@ -206,10 +275,21 @@ Changing the scale to \\( 10^4 \\), so that precision is lower, shows how the be
 setScale(1e4)
 
 gIntersects(p1, elide(p2, shift=c(1e-4, 0)))
-#> [1] FALSE
-gIntersects(p1, elide(p2, shift=c(1e-5, 0)))
-#> [1] TRUE
+```
 
+```
+#> [1] FALSE
+```
+
+```r
+gIntersects(p1, elide(p2, shift=c(1e-5, 0)))
+```
+
+```
+#> [1] TRUE
+```
+
+```r
 plot(gUnion(p1, elide(p2, shift=c(1e-4, 0))), col='lightgrey', axes=T)
 ```
 
@@ -222,24 +302,44 @@ plot(gUnion(p1, elide(p2, shift=c(1e-5, 0))), col='lightgrey', axes=T)
 <img src="/figures//2015-12-20-rgeos-scale_low-precision-2.svg" title="plot of chunk low-precision" alt="plot of chunk low-precision" style="display: block; margin: auto;" />
 
 ```r
-
 # overlap > precision => polygon
 class(gIntersection(p1, elide(p2, shift=c(-1e-4, 0)))) 
+```
+
+```
 #> [1] "SpatialPolygons"
 #> attr(,"package")
 #> [1] "sp"
+```
+
+```r
 # overlap < precision => line
 class(gIntersection(p1, elide(p2, shift=c(-1e-5, 0)))) 
+```
+
+```
 #> [1] "SpatialLines"
 #> attr(,"package")
 #> [1] "sp"
+```
+
+```r
 # separation < precision => line
 class(gIntersection(p1, elide(p2, shift=c(1e-5, 0)))) 
+```
+
+```
 #> [1] "SpatialLines"
 #> attr(,"package")
 #> [1] "sp"
+```
+
+```r
 # separation > precision => NULL
 class(gIntersection(p1, elide(p2, shift=c(1e-4, 0)))) 
+```
+
+```
 #> [1] "NULL"
 ```
 
@@ -279,26 +379,65 @@ For overlap at or above the current precision, a polygon is returned; however, i
 
 ```r
 gi <- gIntersection(p1, elide(p2, shift=c(-1e-4, 0))) # sliver warning
+```
+
+```
 #> Warning in RGEOSBinTopoFunc(spgeom1, spgeom2, byid, id, drop_lower_td,
 #> unaryUnion_if_byid_false, : 1: Polygon object 1 area 0.0001
+```
+
+```
 #> Warning in RGEOSBinTopoFunc(spgeom1, spgeom2, byid, id, drop_lower_td,
 #> unaryUnion_if_byid_false, : Exterior ring 0 of object 1 area 0.0001
+```
+
+```r
 class(gi)
+```
+
+```
 #> [1] "SpatialPolygons"
 #> attr(,"package")
 #> [1] "sp"
+```
+
+```r
 gArea(gi)
+```
+
+```
 #> [1] 1e-04
+```
+
+```r
 gi <- gIntersection(p1, elide(p2, shift=c(-1e-3, 0))) # sliver warning
+```
+
+```
 #> Warning in RGEOSBinTopoFunc(spgeom1, spgeom2, byid, id, drop_lower_td,
 #> unaryUnion_if_byid_false, : 1: Polygon object 1 area 0.001
+```
+
+```
 #> Warning in RGEOSBinTopoFunc(spgeom1, spgeom2, byid, id, drop_lower_td,
 #> unaryUnion_if_byid_false, : Exterior ring 0 of object 1 area 0.001
+```
+
+```r
 class(gi)
+```
+
+```
 #> [1] "SpatialPolygons"
 #> attr(,"package")
 #> [1] "sp"
+```
+
+```r
 gArea(gi)
+```
+
+```
 #> [1] 0.001
 ```
 
@@ -308,10 +447,19 @@ And, with sufficient overlap, the resulting polygon will have an area greater th
 ```r
 gi <- gIntersection(p1, elide(p2, shift=c(-1e-2, 0))) # no warning
 class(gi)
+```
+
+```
 #> [1] "SpatialPolygons"
 #> attr(,"package")
 #> [1] "sp"
+```
+
+```r
 gArea(gi)
+```
+
+```
 #> [1] 0.01
 ```
 
@@ -327,15 +475,33 @@ With the threshold lowered from \\( 10^{-2} \\) to \\( 10^{-3} \\), `rgeos` is l
 
 ```r
 gi <- gIntersection(p1, elide(p2, shift=c(-1e-4, 0)))
+```
+
+```
 #> Warning in RGEOSBinTopoFunc(spgeom1, spgeom2, byid, id, drop_lower_td,
 #> unaryUnion_if_byid_false, : 1: Polygon object 1 area 0.0001
+```
+
+```
 #> Warning in RGEOSBinTopoFunc(spgeom1, spgeom2, byid, id, drop_lower_td,
 #> unaryUnion_if_byid_false, : Exterior ring 0 of object 1 area 0.0001
+```
+
+```r
 class(gi)
+```
+
+```
 #> [1] "SpatialPolygons"
 #> attr(,"package")
 #> [1] "sp"
+```
+
+```r
 gArea(gi)
+```
+
+```
 #> [1] 1e-04
 ```
 
@@ -345,10 +511,19 @@ However, with a shift of \\( 10^{-3} \\), `rgoes` no longer treats the resulting
 ```r
 gi <- gIntersection(p1, elide(p2, shift=c(-1e-3, 0)))
 class(gi)
+```
+
+```
 #> [1] "SpatialPolygons"
 #> attr(,"package")
 #> [1] "sp"
+```
+
+```r
 gArea(gi)
+```
+
+```
 #> [1] 0.001
 ```
 
@@ -360,8 +535,17 @@ Note that it isn't the linear overlap that triggers the warning, it is that the 
 ```r
 gi1 <- gIntersection(p1, elide(p2, shift=c(-1e-3, 0)))
 gArea(gi1)
+```
+
+```
 #> [1] 0.001
+```
+
+```r
 gArea(gi1) / get_RGEOS_polyThreshold()
+```
+
+```
 #> [1] 1
 ```
 
@@ -370,13 +554,31 @@ However, this need not be the case. Now a warning is raised because a slight shi
 
 ```r
 gi2 <- gIntersection(p1, elide(p2, shift=c(-1e-3, -1e-3)))
+```
+
+```
 #> Warning in RGEOSBinTopoFunc(spgeom1, spgeom2, byid, id, drop_lower_td,
 #> unaryUnion_if_byid_false, : 1: Polygon object 1 area 0.000999
+```
+
+```
 #> Warning in RGEOSBinTopoFunc(spgeom1, spgeom2, byid, id, drop_lower_td,
 #> unaryUnion_if_byid_false, : Exterior ring 0 of object 1 area 0.000999
+```
+
+```r
 gArea(gi2)
+```
+
+```
 #> [1] 0.000999
+```
+
+```r
 gArea(gi2) / get_RGEOS_polyThreshold()
+```
+
+```
 #> [1] 0.999
 ```
 
@@ -403,11 +605,23 @@ With `dropSlivers` set to `FALSE`, both are returned.
 set_RGEOS_polyThreshold(1e-2)
 set_RGEOS_dropSlivers(FALSE)
 gi <- gIntersection(p_a, p_b, byid=T)
+```
+
+```
 #> Warning in RGEOSBinTopoFunc(spgeom1, spgeom2, byid, id, drop_lower_td,
 #> unaryUnion_if_byid_false, : 1: Polygon object 1 2 area 0.001
+```
+
+```
 #> Warning in RGEOSBinTopoFunc(spgeom1, spgeom2, byid, id, drop_lower_td,
 #> unaryUnion_if_byid_false, : Exterior ring 0 of object 1 2 area 0.001
+```
+
+```r
 gArea(gi, byid=T)
+```
+
+```
 #>   1 2   2 2 
 #> 0.001 0.499
 ```
@@ -418,11 +632,23 @@ However, `dropSlivers` set to `TRUE`, the small area sliver is removed from the 
 ```r
 set_RGEOS_dropSlivers(TRUE)
 gi <- gIntersection(p_a, p_b, byid=T)
+```
+
+```
 #> Warning in RGEOSBinTopoFunc(spgeom1, spgeom2, byid, id, drop_lower_td,
 #> unaryUnion_if_byid_false, : 1: Polygon object 1 2 area 0.001
+```
+
+```r
 gArea(gi, byid=T)
+```
+
+```
 #>   2 2 
 #> 0.499
+```
+
+```r
 set_RGEOS_dropSlivers(FALSE)
 ```
 
@@ -466,7 +692,13 @@ For a shift within the limits of precision, the misalignment of the middle edge 
 pshift <- elide(p2, shift=c(1e-4, 0))
 pp <- rbind(p1, p3, p4, pshift)
 guu <- gUnaryUnion(pp)
+```
+
+```
 #> Warning: Interior ring 0 of Polygon 0 of object 1 area 0.0001
+```
+
+```r
 plot(guu, col='lightgrey', axes=T)
 ```
 
@@ -502,7 +734,13 @@ set_RGEOS_dropSlivers(TRUE)
 pshift <- elide(p2, shift=c(1e-4, 0))
 pp <- rbind(p1, p3, p4, pshift)
 guu <- gUnaryUnion(pp)
+```
+
+```
 #> Warning: Interior ring 0 of Polygon 0 of object 1 area 0.0001
+```
+
+```r
 plot(guu, col='lightgrey', axes=T)
 ```
 
@@ -529,5 +767,8 @@ Note that this dangle has no impact on the area of the resulting geometry, sugge
 
 ```r
 cat(gArea(guu, byid=T))
+```
+
+```
 #> 4
 ```

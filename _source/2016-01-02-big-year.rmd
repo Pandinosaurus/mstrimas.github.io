@@ -1,0 +1,361 @@
+---
+layout: post
+title: Visualizing Noah Strycker's Birding Big Year
+published: true
+excerpt: >
+  Noah Strycker just broke the global big year record, seeing over 6,000 bird 
+  species in 2015. I use ggplot to visualize his sightings over the course of the
+  year.  
+category: r
+tags: r ggplot birding
+---
+
+# The Biggest Year
+
+A [big year](https://en.wikipedia.org/wiki/Big_year) is an informal competition among birders to see the most bird species in a given geographical area between January 1st and December 31st of the same calendar year. Big years can be a big or small as the participant desires: entire countries, single provinces or states, or even your own backyard.
+
+Starting in Antarctica on January 1, 2015, American birder Noah Strycker embarked on the biggest of all big years, a [global Big Year](http://www.audubon.org/magazine/january-february-2015/welcome-birding-without-borders). His goal was to bird and travel non-stop for 365 days, visiting dozens of countries and every continent, in a quest to beat the previous record of 4,341 species. In particular, he set himself a [target of 5,000 species](http://www.audubon.org/magazine/january-february-2015/welcome-birding-without-borders), which is just under half of every bird species on earth!
+
+Noah kept a daily blog entitled [*Birding Without Borders*](http://www.audubon.org/features/birding-without-borders) on the [Audobon website](http://www.audubon.org/). Along with this, he kept a [list of every new species](http://www.audubon.org/news/the-species-list) he saw. When he crossed the finish line on December 31st in India, Noah had shattered the previous big year record and his own target, seeing over 6,000 species in 2015!
+
+In what follows I use R to get the species list off the Audubon website, clean it up, and take a look at how Noah's year progressed. **If you don't care about R, skip through and have a look at the plots.**
+
+# Big Year Species List
+
+## Required packages
+
+```{r packages}
+suppressPackageStartupMessages(library(dplyr))
+library(rvest)
+library(lubridate)
+library(ggplot2)
+library(scales)
+library(knitr)
+library(geonames)
+# you'll need to run the following line with your Geonames username
+# or put it in your .Rprofile
+# options(geonamesUsername = 'YOURUSERNAME')
+library(countrycode)
+```
+
+## Web scraping
+
+Noah's list of species is available as a big HTML table on the Audubon website. I download the html and parse into a dataframe using `rvest`:
+
+```{r dl-html}
+bigyear <- read_html('http://www.audubon.org/news/the-species-list') %>% 
+  html_node('table') %>% 
+  html_table
+head(bigyear) %>% 
+  kable(row.names = F)
+tail(bigyear) %>% 
+  kable(row.names = F)
+```
+
+Turns out this is only the final quarter of the year, [January to June](http://www.audubon.org/news/the-species-list-part-1) and [July to September](https://www.audubon.org/news/the-species-list-part-2) are on a different pages.
+
+```{r dl-old}
+# third quarter of year
+bigyear <- read_html('http://www.audubon.org/news/the-species-list-part-2') %>% 
+  html_node('table') %>% 
+  html_table %>% 
+  bind_rows(bigyear, .)
+
+# first half of year
+bigyear <- read_html('http://www.audubon.org/news/the-species-list-part-1') %>% 
+  html_node('table') %>% 
+  html_table %>% 
+  bind_rows(bigyear, .)
+```
+
+## Tidy
+
+First, wow, `rvest` makes web scraping almost too easy! Unfortunately, the table didn't import cleanly because the html table has no header with column names, and for each day there is a row spanning all the columns that acts as a header. I can easily fix this by removing any rows that don't have species names.
+
+```{r tidy}
+bigyear <- bigyear %>% 
+  setNames(c('species_num', 'species', 'date', 'country', 'site')) %>% 
+  filter(!is.na(species)) %>% 
+  mutate(species_num = as.integer(species_num))
+head(bigyear) %>% 
+  kable(row.names = F)
+```
+
+## Fix dates  
+
+Next, I notice that the date field is of type character with just the month and day; a year isn't needed since all these dates fall within 2015 by definition. I parse this into a proper date.
+
+```{r fix-dates}
+bigyear <- bigyear %>% 
+  mutate(date = paste('2015', date, sep='/')) %>% 
+  mutate(date = as.Date(ymd(date)))
+glimpse(bigyear)
+```
+
+I also think it would be valuable to have a day number variable, i.e. number of days since January 1, 2015.
+
+```{r day-number}
+bigyear <- bigyear %>% 
+  mutate(day = yday(date))
+tail(bigyear) %>% 
+  kable(row.names = F)
+```
+
+## Tidying up countries  
+
+Having a look at the countries column I see that it's not strictly country:
+
+```{r not-country}
+unique(bigyear$country) %>% 
+  sort
+```
+
+Borneo, Bali, and Sulawesi are all islands in Southeast Asia. Borneo consists of three countries (Malaysia, Brunei, and Indonesia), but I happen to know Noah only visited the Malaysian province of Sabah. Bali and Sulawesi are both Indonesian islands.
+
+The US and Australia are broken into states. New Britain Island is part of Papua New Guinea.
+
+The Falkland islands are technically a British overseas territory, but are off the coast of Argentina and there is an [ongoing sovereignty dispute](https://en.wikipedia.org/wiki/Falkland_Islands_sovereignty_dispute). I'll leave them as is. Antarctica is not technically a country, but I'll also leave it as is because it doesn't nicely fit anywhere else. Finally, the records for "High Seas" are from the [Drake Passage](https://en.wikipedia.org/wiki/Drake_Passage), the area between South America and Antarctica. I'll group these with Antarctica.
+
+```{r country-fix-se-asia}
+bigyear <- bigyear %>% 
+  mutate(location = country,
+         country = ifelse(country == 'Borneo', 'Malaysia', country),
+         country = ifelse(country == 'Bali', 'Indonesia', country),
+         country = ifelse(country == 'Sulawesi', 'Indonesia', country),
+         country = ifelse(grepl('^US', country), 'United States', country),
+         country = ifelse(grepl('Australia', country), 'Australia', country),
+         country = ifelse(country == 'Tasmania', 'Australia', country),
+         country = ifelse(country == 'New Britain Island', 'Papua New Guinea', country),
+         country = ifelse(country == 'High Seas', 'Antarctica', country)) %>% 
+  select(species_num, species, date, day, country, location, site) %>% 
+  arrange(desc(species_num))
+unique(bigyear$country) %>% 
+  sort
+```
+
+```{r echo=F}
+#saveRDS(bigyear, 'data/big-year.rds')
+#bigyear <- readRDS('data/big-year.rds')
+```
+
+# Analysis
+
+Noah visited `r n_distinct(bigyear$country)` countries over the 365 days and saw an average of `r round(mean(count(bigyear, country)$n), 2)` new species per country and `r round(sum(count(bigyear, day)$n) / 365, 2)` new species per day. Let's dive into this a little more with some plots.
+
+## Species accumulation
+
+I start by looking at the species accumulation curve, i.e. trend in cumulative species seen over the course of the big year.
+
+```{r trend, fig.cap='Trend in species seen over the course of the big year.'}
+bigyear %>% 
+  group_by(date) %>% 
+  summarize(n_species = max(species_num)) %>% 
+  {ggplot(., aes(x = date, y = n_species)) +
+    geom_line() +
+    geom_smooth(method = 'lm', se = F, color = 'red', linetype = 'dashed', size = 0.5) +
+    scale_x_date(labels = date_format("%b"),
+                 breaks = date_breaks("month")) +
+    scale_y_continuous(breaks = 1000 * (0:6),
+                       labels = comma) +
+    labs(x = 'Date', y = 'Cumulative number of species') +
+    annotate("text", x = as.Date('2015-04-01'), y = 5000, 
+             label = paste0('Slope = ', 
+                            round(coef(lm(n_species ~ date, data = .))[[2]], 1),
+                            ' birds / day'))
+    }
+```
+
+This is extremely impressive, Noah has managed to maintain a nearly linear increase in species sightings over the course of the year. A typical [species accumulation curve](https://en.wikipedia.org/wiki/Species_discovery_curve) shows a pattern of saturation; there is an effect of diminishing returns as more time is spent searching. Of course, here he's managed to mostly avoid this by constantly changing locations to encounter new species pools.
+
+We can also look at number of new species by month.
+
+```{r by-month, fig.cap='Number of new bird species in each month.'}
+bigyear %>% 
+  mutate(month = month(date, label = T)) %>% 
+  ggplot(aes(x = month)) + 
+    geom_bar() +
+    labs(x = 'Month', y = '# new species')
+```
+
+Here the effect of saturation is more clear. There seems to be three distinct groups and, within each group, there is a decline in species over time, then a jump when the next group is reached. I suspect these jumps are related to Noah changing continents.
+
+## Daily new species counts
+
+How much variability was there in the number of new species Noah saw each day? A simple histogram should provide some insight here. Days with no birds seen will not appear in the dataset, so I bring these days in as well.
+
+```{r by-day}
+all_dates <- seq(ymd('2015-01-01'), ymd('2015-12-31'), by = 'day') %>% 
+  as.Date %>% 
+  data.frame(date = .)
+bigyear_by_day <- bigyear %>% 
+  count(date) %>%
+  left_join(all_dates, ., by = 'date') %>% 
+  mutate(n = ifelse(is.na(n), 0, n))
+ggplot(bigyear_by_day, aes(x = n)) +
+  geom_histogram(binwidth = 5) +
+  geom_vline(xintercept=mean(bigyear_by_day$n), linetype='dashed', color = 'red') +
+  annotate("text", x = mean(bigyear_by_day$n) + 15, y = 70, 
+           label = paste0('Average = ', 
+                          round(mean(bigyear_by_day$n), 1), ' birds / day'),
+           color = 'red', size = 3.5) +
+  scale_x_continuous(breaks=seq(0, 110, by = 10), limits=c(0, 110)) +
+  scale_y_continuous(breaks=seq(0, 80, by = 10)) +
+  labs(x = '# new species seen per day')
+```
+
+### Best days
+
+From this plot it's clear that Noah had a handful of very productive days. Where was Noah birding on his three most birdy days?
+
+```{r best-day}
+top_n(bigyear_by_day, 3, n) %>% 
+  inner_join(bigyear, by = 'date') %>% 
+  select(day, date, country, n) %>% 
+  distinct %>% 
+  arrange(desc(n)) %>% 
+  kable
+```
+
+### Zero bird days
+
+At the other end of the spectrum, are days where Noah didn't see any new birds.
+
+```{r zero-days}
+filter(bigyear_by_day, n == 0) %>% 
+  .$date
+```
+
+Delving into these requires consulting Noah's blog. On January 3 (day 3), [he was in Antarctica](https://www.audubon.org/news/birding-without-borders-day-3) where there is a very small pool of species to see. On June 8 (day 159), Noah was stuck in [various New York airports due to flight delays](https://www.audubon.org/news/day-159-grounded-and-zeroed). Finally, on October 1 (day 274), Noah was gain stuck in transit on his way [from India to Myanmar](https://www.audubon.org/news/day-274-zero-bird-day-no-3).
+
+Of course, as with this entire analysis, I only have data on *new* species seen, not total species seen. So, Noah likely did see some birds on these zero days, just no new ones. More on this later.
+
+## Geographical Analysis
+
+Next I connect to the [GeoNames API](http://www.geonames.org/) to join in some country level data. [GeoNames](http://www.geonames.org/) is a database of geographical information with an API interface. [rOpenSci](https://ropensci.org) has built the [`geonames`](https://github.com/ropensci/geonames) package to access this API.
+
+### Download `countryInfo` from API
+
+The `countryInfo` table contains the basic country-level information I'm after:  
+
+```{r country-info, cache=T}
+country_info <- GNcountryInfo()
+country_info <- country_info %>% 
+  select(continent_code = continent, continent_name = continentName, 
+         country_code = countryCode, country_name = countryName,
+         area = areaInSqKm, north, south, east, west)
+```
+
+Of course, the big year dataset uses non-standard country names. Here's where the `countrycode` package comes in handy, it aids conversion between various country coding schemes and country names. In particular, `GNcountryInfo()$countryCode` is the ISO alpha-2 country code, which I'll use in joining. Thanks to [Andrew MacDonald](https://github.com/aammd) for this tip.
+
+```{r countrycode}
+bigyear <- bigyear %>% 
+  mutate(country_code = countrycode(country, 'country.name', 'iso2c')) %>% 
+  right_join(country_info, ., by = 'country_code')
+```
+
+### Geographical visualization
+
+Now it's possible to delve deeper into the spatial pattern of the sightings. First, I look at new species by continent.  
+
+```{r by-continent}
+cont_summ <- bigyear %>% 
+  group_by(continent_name) %>% 
+  summarize(n_species = n(), 
+            birding_days = n_distinct(day),
+            species_per_day = n_species / birding_days,
+            first_day = min(date)) %>% 
+  ungroup %>% 
+  mutate(continent_name = factor(continent_name),
+         continent_name = reorder(continent_name, first_day, min)) %>% 
+  select(-first_day)
+
+ggplot(cont_summ, aes(x = continent_name, y = n_species)) + 
+  geom_bar(stat = 'identity') +
+  labs(x = 'Continent', y = '# new species seen')
+```
+
+No surprise here, tons of species seen in the tropics, especially South America. Of course, this is confounded by the amount of time Noah spent on each continent. So, now I look at number of species seen per day within each continent.
+
+```{r per-day}
+bigyear %>% 
+  count(continent_name, date) %>% 
+  ungroup %>% 
+  mutate(continent_name = factor(continent_name),
+         continent_name = reorder(continent_name, date, min)) %>% 
+  ggplot(aes(x = continent_name, y = n)) +
+    geom_boxplot(outlier.colour = 'red', outlier.size = 1) +
+    geom_text(data = cont_summ, 
+              aes(x = continent_name, y = 90, label = birding_days)) +
+    annotate('text', x = 1, y = 95, label = '# days') +
+    labs(x = 'Continent', y = '# new species per day')
+kable(cont_summ, digits = 2, 
+      col.names = c('Continent', '# species', 'Days', 'Species per day'),
+      row.names = F)
+```
+
+This is pretty interesting, Noah has seen around 15 new species per day regardless of continent. This suggests some impressive skill in planning on his part, he's clearly optimized his itinerary to fight that tendency for the species accumulation curve to saturate, by moving around constantly and spending less time in less diverse areas.
+
+Antarctica is an outlier with only 6.25 species per day, but these are all exciting species that aren't found elsewhere. Noah saw the most species per day in South America and Oceania at about 20 per day. Oceania has a very distinctive avifauna and Noah was there for only 28 days, yielding some very concentrated birding. South America has extremely high [alpha](https://en.wikipedia.org/wiki/Alpha_diversity) and [beta](https://en.wikipedia.org/wiki/Beta_diversity) diversity of birds. This is clear from this map from the [Biodiversity Mapping](http://biodiversitymapping.org/) project:  
+
+![bird diversity map](http://www.biodiversitymapping.org/img/Birds_all_spp.jpg)
+
+In addition, South America has amazing infrastructure for birding. A huge number of birders visit this region and many ornithologists conduct research here. These facts were demonstrated by a [team from Louisiana State University](http://www.lsubigday.org/) that saw 354 bird species in a single 24 period in Peru in 2014, the record for most species seen in a day.
+
+And, no surprise about the country where Noah saw the most birds... Peru!
+
+```{r by-country, fig.height=8}
+country_summ <- bigyear %>% 
+  group_by(continent_name, country) %>% 
+  summarize(n_species = n(), 
+            birding_days = n_distinct(day),
+            species_per_day = n_species / birding_days) %>% 
+  ungroup %>% 
+  mutate(country = factor(country),
+         country = reorder(country, n_species, max),
+         continent_name = factor(continent_name),
+         continent_name = reorder(continent_name, -n_species, min))
+
+ggplot(country_summ, aes(x = country, y = n_species, fill = continent_name)) + 
+  geom_bar(stat = 'identity') +
+  coord_flip() +
+  scale_fill_brewer(name='Continent', palette = 'Set1') +
+  labs(x = 'Country', y = '# new species seen')
+```
+
+Finally, I plot the trend in species seen again, but colour each segment by continent. Since Noah visited Asia three times, with visits to Africa and Oceania in between, I need to group the dataset by continuous stretches of time in each continent. My solution comes from [this StackOverflow response](http://stackoverflow.com/a/14821178/3591386).  
+
+```{r trend-cont}
+trend <- bigyear %>% 
+  group_by(date, continent_name) %>% 
+  summarize(n_species = max(species_num)) %>% 
+  ungroup %>% 
+  mutate(idx = (continent_name != lag(continent_name)),
+         continent_name = reorder(factor(continent_name), date, min))
+trend$grp <- c(1, which(trend$idx), nrow(trend) + 1) %>% 
+  diff %>% 
+  rep(1:length(.), .)
+
+ggplot(trend, aes(x = date, y = n_species, color = continent_name)) +
+  geom_line(aes(group = grp), size = .7) +
+  scale_x_date(labels = date_format("%b"),
+               breaks = date_breaks("month")) +
+  scale_y_continuous(breaks=1000 * (0:6),
+                     labels = comma) +
+  scale_color_brewer(name='Continent', palette = 'Set1') +
+  labs(x = 'Date', y = 'Cumulative number of species seen')
+```
+
+Since I only have data on number of *new* species seen each day, all these continent and country level patterns are confounded by the order in which countries are visited. Obviously the distribution of many birds spans country and continental lines. So, for example, since Noah visited Ecuador after neighbouring Peru, many of the birds he saw in Ecuador would already have been seen in Peru. Also, many many tropical birds migrate poleward in spring, so Noah would have already seen many North American migrants on their wintering grounds in Central and South America.
+
+It would be really interesting to get ahold of the full set of Noah's [eBird](http://ebird.org/content/ebird/) checklists for the year. With these data, this analysis could be expanded and refined. Regardless, I think some interesting insights were gained from the existing dataset.
+
+```{r}
+library(ggplot2)
+world <- map_data("world")
+worldmap <- ggplot(world, aes(x=long, y=lat, group=group)) +
+  geom_path() +
+  scale_y_continuous(breaks=(-2:2) * 30) +
+  scale_x_continuous(breaks=(-4:4) * 45)
+print(worldmap)
+```
+

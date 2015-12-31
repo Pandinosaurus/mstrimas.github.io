@@ -13,13 +13,14 @@ code {
 .highlight {
   background-color: $code-box-color;
   font-size: 90%;
-  margin-bottom: 1.5em;
+  margin-bottom: 1.5rem;
   border-radius: $global-radius;
+  border: 1px $border-color solid;
 
   pre {
     position: relative;
     margin: 0;
-    padding: 1em;
+    padding: 1rem;
   }
 
   code {
@@ -27,7 +28,7 @@ code {
     background-color: transparent;
   }
 
-  .lineno { padding-right: 24px; color: lighten(#333332,50);}
+  .lineno { padding-right: 2rem; color: lighten(#333332,50);}
   .hll { background-color: #ffffcc }
   .c { color: #999988; font-style: italic } /* Comment */
   .err { color: #a61717; background-color: #e3d2d2 } /* Error */

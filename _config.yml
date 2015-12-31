@@ -24,6 +24,7 @@ paginate:             20
 timezone:             "America/Vancouver"
 sass:
   sass_dir:           _sass
+  style:              compressed
 
 # List of links in the navigation bar
 navbar-links:

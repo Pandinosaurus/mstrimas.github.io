@@ -34,13 +34,13 @@ knit_post <- function(source_rmd = '', overwrite = FALSE) {
     fig.width=480/96,
     fig.height=480/96,
     dev='svg',
-    comment='#>',
+    comment='##',
     tidy=FALSE,
     cache=FALSE,
     error=TRUE,
     warning=TRUE,
     message=FALSE,
-    collapse=TRUE)
+    collapse=FALSE)
   
   if (source_rmd == '') {
     if (clean) {

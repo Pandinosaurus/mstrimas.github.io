@@ -44,16 +44,16 @@ t_seq <- system.time({
   }
 })
 
+writeLines("", "log.txt")
 registerDoMC(cores = 2)
-t_par <- system.time({
-  results_foreach <- foreach(i = 1:10) %dopar% {
-    print(environment())
-    r <- optim(50, fw, method = "SANN",
-                 control = list(maxit = 200000, temp = 20, parscale = 20))
-    r
-    r[c('par', 'value')]
-  }
-})
+results_foreach <- foreach(i = 1:10) %dopar% {
+  sink("log.txt", append=TRUE)  
+  print(environment())
+  r <- optim(50, fw, method = "SANN",
+               control = list(maxit = 200000, temp = 20, parscale = 20))
+  r
+  r[c('par', 'value')]
+}
 registerDoSEQ()
 
 t_par

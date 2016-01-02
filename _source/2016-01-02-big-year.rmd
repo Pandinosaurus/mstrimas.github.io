@@ -14,14 +14,11 @@ tags: r ggplot birding
 setwd('_source/')
 ```
 
-
-# The Biggest Year
-
 A [big year](https://en.wikipedia.org/wiki/Big_year) is an informal competition among birders to see the most bird species in a given geographical area between January 1st and December 31st of the same calendar year. Big years can be a big or small as the participant desires: entire countries, single provinces or states, or even your own backyard.
 
 Starting in Antarctica on January 1, 2015, American birder Noah Strycker embarked on the biggest of all big years, a [global Big Year](http://www.audubon.org/magazine/january-february-2015/welcome-birding-without-borders). His goal was to bird and travel non-stop for 365 days, visiting dozens of countries and every continent, in a quest to beat the previous record of 4,341 species. In particular, he set himself a [target of 5,000 species](http://www.audubon.org/magazine/january-february-2015/welcome-birding-without-borders), which is just under half of every bird species on earth!
 
-Noah kept a daily blog entitled [*Birding Without Borders*](http://www.audubon.org/features/birding-without-borders) on the [Audobon website](http://www.audubon.org/). Along with this, he kept a [list of every new species](http://www.audubon.org/news/the-species-list) he saw. When he crossed the finish line on December 31st in India, Noah had shattered the previous big year record and his own target, seeing over 6,000 species in 2015!
+Noah kept a daily blog entitled [*Birding Without Borders*](http://www.audubon.org/features/birding-without-borders) on the [Audobon website](http://www.audubon.org/). Along with this, he kept a [list of every new species](http://www.audubon.org/news/the-species-list) he saw. When he crossed the finish line on December 31st in India, Noah had shattered the previous big year record and his own target, seeing 6,042 species in 2015!
 
 In what follows I use R to get the species list off the Audubon website, clean it up, and take a look at how Noah's year progressed. **If you don't care about R, skip through and have a look at the plots.**
 
@@ -54,10 +51,6 @@ Noah's list of species is available as a big HTML table on the Audubon website. 
 bigyear <- read_html('http://www.audubon.org/news/the-species-list') %>% 
   html_node('table') %>% 
   html_table
-head(bigyear) %>% 
-  kable(row.names = F)
-tail(bigyear) %>% 
-  kable(row.names = F)
 ```
 
 Turns out this is only the final quarter of the year, [January to June](http://www.audubon.org/news/the-species-list-part-1) and [July to September](https://www.audubon.org/news/the-species-list-part-2) are on a different pages.
@@ -135,7 +128,7 @@ bigyear <- bigyear %>%
          country = ifelse(country == 'Tasmania', 'Australia', country),
          country = ifelse(country == 'New Britain Island', 'Papua New Guinea', country),
          country = ifelse(country == 'High Seas', 'Antarctica', country)) %>% 
-  select(species_num, species, date, day, country, location, site) %>% 
+  dplyr::select(species_num, species, date, day, country, location, site) %>% 
   arrange(desc(species_num))
 unique(bigyear$country) %>% 
   sort
@@ -218,7 +211,7 @@ From this plot it's clear that Noah had a handful of very productive days. Where
 ```{r best-day}
 top_n(bigyear_by_day, 3, n) %>% 
   inner_join(bigyear, by = 'date') %>% 
-  select(day, date, country, n) %>% 
+  dplyr::select(day, date, country, n) %>% 
   distinct %>% 
   arrange(desc(n)) %>% 
   kable
@@ -248,7 +241,7 @@ The `countryInfo` table contains the basic country-level information I'm after:
 ```{r country-info, cache=T}
 country_info <- GNcountryInfo()
 country_info <- country_info %>% 
-  select(continent_code = continent, continent_name = continentName, 
+  dplyr::select(continent_code = continent, continent_name = continentName, 
          country_code = countryCode, country_name = countryName,
          area = areaInSqKm, north, south, east, west)
 ```
@@ -275,10 +268,12 @@ cont_summ <- bigyear %>%
   ungroup %>% 
   mutate(continent_name = factor(continent_name),
          continent_name = reorder(continent_name, first_day, min)) %>% 
-  select(-first_day)
+  dplyr::select(-first_day)
 
 ggplot(cont_summ, aes(x = continent_name, y = n_species)) + 
   geom_bar(stat = 'identity') +
+  scale_x_discrete(labels = c('North America' = 'N America',
+                              'South America' = 'S America')) +
   labs(x = 'Continent', y = '# new species seen')
 ```
 
@@ -311,7 +306,7 @@ In addition, South America has amazing infrastructure for birding. A huge number
 
 And, no surprise about the country where Noah saw the most birds... Peru!
 
-```{r by-country, fig.height=8}
+```{r by-country, fig.width = 600/96, fig.height=750/96}
 country_summ <- bigyear %>% 
   group_by(continent_name, country, country_code) %>% 
   summarize(n_species = n(), 
@@ -332,7 +327,7 @@ ggplot(country_summ, aes(x = country, y = n_species, fill = continent_name)) +
 
 Finally, I plot the trend in species seen again, but colour each segment by continent. Since Noah visited Asia three times, with visits to Africa and Oceania in between, I need to group the dataset by continuous stretches of time in each continent. My solution comes from [this StackOverflow response](http://stackoverflow.com/a/14821178/3591386).  
 
-```{r trend-cont}
+```{r trend-cont, fig.width=600/96, fig.height=480/96}
 trend <- bigyear %>% 
   group_by(date, continent_name) %>% 
   summarize(n_species = max(species_num)) %>% 
@@ -405,14 +400,14 @@ world_wk_df <- merge(world_wgs, country_summ, by = 'country_code')@data %>%
 
 Finally, I create the map:
 
-```{r map, fig.width=960/96, fig.width=960/96}
+```{r map, fig.width=960/96, fig.height=600/96}
 ggplot(bbox_wk_df, aes(long, lat, group = group)) +
   geom_polygon(fill = 'light blue') +
   geom_path(data = grat_wk_df, aes(long, lat, group = group, fill = NULL), 
             linetype = 'dashed', color = 'grey70', size = 0.25) +
   geom_polygon(data = world_wk_df, 
                aes(long, lat, group = group, fill = n_species), color = 'white', size = 0.15) +
-  scale_fill_gradient(name = '# New Species', limits = c(0, 500), 
+  scale_fill_gradient(name = '# new species', limits = c(0, 500), 
                        low = 'yellow', high = 'red') +
   labs(title = "Noah's Big Year: New Species by Country") +
   coord_equal() +
@@ -431,14 +426,14 @@ ggplot(bbox_wk_df, aes(long, lat, group = group)) +
 
 Far from perfect in my opinion, but not a terrible map by any means. Here's one more, with species per day.
 
-```{r map-by-day}
+```{r map-by-day, fig.width=960/96, fig.height=600/96}
 ggplot(bbox_wk_df, aes(long, lat, group = group)) +
   geom_polygon(fill = 'light blue') +
   geom_path(data = grat_wk_df, aes(long, lat, group = group, fill = NULL), 
             linetype = 'dashed', color = 'grey70', size = 0.25) +
   geom_polygon(data = world_wk_df, 
                aes(long, lat, group = group, fill = species_per_day), color = 'white', size = 0.15) +
-  scale_fill_gradient(name = 'Mean # New Species / Day', limits = c(0, 40),
+  scale_fill_gradient(name = 'Mean new species / day', limits = c(0, 40),
                        low = 'yellow', high = 'red') +
   labs(title = "Noah's Big Year: New Species per Day by Country") +
   coord_equal() +

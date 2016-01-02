@@ -14,13 +14,13 @@ tags: r ggplot birding
 setwd('_source/')
 ```
 
-A [big year](https://en.wikipedia.org/wiki/Big_year) is an informal competition among birders to see the most bird species in a given geographical area between January 1st and December 31st of the same calendar year. Big years can be a big or small as the participant desires: entire countries, single provinces or states, or even your own backyard.
+A [big year](https://en.wikipedia.org/wiki/Big_year) is an informal competition among birders to see the most bird species in a given geographical area between January 1st and December 31st of the same calendar year. Big years can be as big or small as the participant desires: entire countries, single provinces or states, or even your own backyard.
 
 Starting in Antarctica on January 1, 2015, American birder Noah Strycker embarked on the biggest of all big years, a [global Big Year](http://www.audubon.org/magazine/january-february-2015/welcome-birding-without-borders). His goal was to bird and travel non-stop for 365 days, visiting dozens of countries and every continent, in a quest to beat the previous record of 4,341 species. In particular, he set himself a [target of 5,000 species](http://www.audubon.org/magazine/january-february-2015/welcome-birding-without-borders), which is just under half of every bird species on earth!
 
 Noah kept a daily blog entitled [*Birding Without Borders*](http://www.audubon.org/features/birding-without-borders) on the [Audobon website](http://www.audubon.org/). Along with this, he kept a [list of every new species](http://www.audubon.org/news/the-species-list) he saw. When he crossed the finish line on December 31st in India, Noah had shattered the previous big year record and his own target, seeing 6,042 species in 2015!
 
-In what follows I use R to get the species list off the Audubon website, clean it up, and take a look at how Noah's year progressed. **If you don't care about R, skip through and have a look at the plots.**
+In what follows I use R to get the species list off the Audubon website, clean it up, and take a look at how Noah's year progressed. **If you don't care about R, [skip to the analysis](#analysis) and have a look at the plots.**
 
 # Big Year Species List
 
@@ -45,7 +45,7 @@ library(rgeos)
 
 ## Web scraping
 
-Noah's list of species is available as a big HTML table on the Audubon website. I download the html and parse into a dataframe using `rvest`:
+Noah's list of species is available as a big HTML table on the Audubon website. I download the html and parse it into a dataframe using `rvest`:
 
 ```{r dl-html}
 bigyear <- read_html('http://www.audubon.org/news/the-species-list') %>% 
@@ -115,7 +115,7 @@ Borneo, Bali, and Sulawesi are all islands in Southeast Asia. Borneo consists of
 
 The US and Australia are broken into states. New Britain Island is part of Papua New Guinea.
 
-The Falkland islands are technically a British overseas territory, but are off the coast of Argentina and there is an [ongoing sovereignty dispute](https://en.wikipedia.org/wiki/Falkland_Islands_sovereignty_dispute). I'll leave them as is. Antarctica is not technically a country, but I'll also leave it as is because it doesn't nicely fit anywhere else. Finally, the records for "High Seas" are from the [Drake Passage](https://en.wikipedia.org/wiki/Drake_Passage), the area between South America and Antarctica. I'll group these with Antarctica.
+The Falkland islands are technically a British overseas territory, but are off the coast of Argentina and there is an [ongoing sovereignty dispute](https://en.wikipedia.org/wiki/Falkland_Islands_sovereignty_dispute). I'll leave them as is. Antarctica is not technically a country, but I'll also leave it as is because it doesn't nicely fit anywhere else. Finally, the records for *High Seas* are from the [Drake Passage](https://en.wikipedia.org/wiki/Drake_Passage), the area between South America and Antarctica. I'll group these with Antarctica.
 
 ```{r country-fix-se-asia}
 bigyear <- bigyear %>% 
@@ -162,8 +162,7 @@ bigyear %>%
     annotate("text", x = as.Date('2015-04-01'), y = 5000, 
              label = paste0('Slope = ', 
                             round(coef(lm(n_species ~ date, data = .))[[2]], 1),
-                            ' birds / day'))
-    }
+                            ' birds / day'))}
 ```
 
 This is extremely impressive, Noah has managed to maintain a nearly linear increase in species sightings over the course of the year. A typical [species accumulation curve](https://en.wikipedia.org/wiki/Species_discovery_curve) shows a pattern of saturation; there is an effect of diminishing returns as more time is spent searching. Of course, here he's managed to mostly avoid this by constantly changing locations to encounter new species pools.
@@ -195,7 +194,7 @@ bigyear_by_day <- bigyear %>%
 ggplot(bigyear_by_day, aes(x = n)) +
   geom_histogram(binwidth = 5) +
   geom_vline(xintercept=mean(bigyear_by_day$n), linetype='dashed', color = 'red') +
-  annotate("text", x = mean(bigyear_by_day$n) + 15, y = 70, 
+  annotate("text", x = mean(bigyear_by_day$n) + 25, y = 70, 
            label = paste0('Average = ', 
                           round(mean(bigyear_by_day$n), 1), ' birds / day'),
            color = 'red', size = 3.5) +
@@ -290,15 +289,19 @@ bigyear %>%
     geom_text(data = cont_summ, 
               aes(x = continent_name, y = 90, label = birding_days)) +
     annotate('text', x = 1, y = 95, label = '# days') +
+    scale_x_discrete(labels = c('North America' = 'N America',
+                                'South America' = 'S America')) +
     labs(x = 'Continent', y = '# new species per day')
-kable(cont_summ, digits = 2, 
-      col.names = c('Continent', '# species', 'Days', 'Species per day'),
-      row.names = F)
+
+arrange(cont_summ, species_per_day) %>% 
+  kable(digits = 2, col.names = c('Continent', '# species', 'Days', 
+                                  'Species per day'), 
+        row.names = F)
 ```
 
 This is pretty interesting, Noah has seen around 15 new species per day regardless of continent. This suggests some impressive skill in planning on his part, he's clearly optimized his itinerary to fight that tendency for the species accumulation curve to saturate, by moving around constantly and spending less time in less diverse areas.
 
-Antarctica is an outlier with only 6.25 species per day, but these are all exciting species that aren't found elsewhere. Noah saw the most species per day in South America and Oceania at about 20 per day. Oceania has a very distinctive avifauna and Noah was there for only 28 days, yielding some very concentrated birding. South America has extremely high [alpha](https://en.wikipedia.org/wiki/Alpha_diversity) and [beta](https://en.wikipedia.org/wiki/Beta_diversity) diversity of birds. This is clear from this map from the [Biodiversity Mapping](http://biodiversitymapping.org/) project:  
+Antarctica is an outlier with only 6.25 species per day, but these are all exciting species that aren't found elsewhere. Noah saw the most species per day in South America and Oceania at about 20 per day. Oceania has a very distinctive avifauna and Noah was there for only 28 days, yielding some very concentrated birding. South America has extremely high [alpha](https://en.wikipedia.org/wiki/Alpha_diversity) and [beta](https://en.wikipedia.org/wiki/Beta_diversity) diversity of birds. This is clear from this map from the [Biodiversity Mapping](http://biodiversitymapping.org/) project:
 
 ![bird diversity map](http://www.biodiversitymapping.org/img/Birds_all_spp.jpg)
 

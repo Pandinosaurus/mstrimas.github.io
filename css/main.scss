@@ -113,6 +113,7 @@ div.content {
   margin: 0;
   padding: 0;
   float: left;
+  min-width: 20rem;
 }
 
 @media (#{$bp-larger-than-phablet}) {

@@ -36,8 +36,20 @@ blockquote {
 }
 
 table {
+  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
+}
+
+.footnotes {
+  font-size: 80%;
+  border-top: 1px $border-color solid;
+  padding-top: 1rem;
+  p {
+    margin: 0;
+    padding-left: 1em;
+    text-indent: -1em;
+  }
 }
   
 // Lists

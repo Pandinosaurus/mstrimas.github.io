@@ -267,15 +267,6 @@ estimate_pi_distance(1e5)
 ## 1      3.1438 0.653
 ```
 
-```r
-estimate_pi(1e5)
-```
-
-```
-##   pi_estimate     t
-## 1     3.13396 0.742
-```
-
 For comparison, I estimate \\( \\pi \\) at a range of numbers of points as above.  
 
 
@@ -351,7 +342,6 @@ drop_needle <- function(n_needles, plane, l = 0.5) {
     {SpatialLines(list(Lines(., ID = 'a')))} %>% 
     disaggregate
 }
-
 plot(plane, axes = T, border = '#F38630', col = 'transparent', lwd = 1, lty = 2)
 plot(ruled_lines, axes = T, col = '#FA6900', lwd = 2, add = T)
 drop_needle(50, plane, l = 0.5) %>% 

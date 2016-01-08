@@ -207,6 +207,12 @@ footer {
 .post-meta {
   font-style: italic;
   color: $dark-grey;
+  a {
+    color: $dark-grey;
+    &:hover {
+      color: $primary-color;
+    }
+  }
 }
 
 @import "syntax";

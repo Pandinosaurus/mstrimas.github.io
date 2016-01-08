@@ -24,8 +24,7 @@ title: Matt Strimas-Mackey
       <h3 class="post-title">{{ post.title }}</h3>
     </a>
     <p class="post-meta">
-      <i class="fa fa-fw fa-calendar"></i>{{ post.date | date: "%B %-d, %Y" }} 
-        &nbsp;
+      <i class="fa fa-fw fa-calendar"></i>{{ post.date | date: "%B %-d, %Y" }}
         <a href="{{ post.path | prepend: site.github_repo | replace:'.md','.rmd' | replace:'/_posts/','/blob/master/_source/' }}">
         <i class="fa fa-fw fa-github"></i>Post source</a>
     </p>

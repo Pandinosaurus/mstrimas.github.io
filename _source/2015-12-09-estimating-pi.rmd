@@ -9,7 +9,7 @@ category: gis
 tags: r spatial gis monte-carlo
 ---
 
-While reading the Wikipedia page on [Monte Carlo methods](https://en.wikipedia.org/wiki/Monte_Carlo_method) recently I came across two interesting spatial approaches for estimating \\( \\pi \\). Both involve randomly placing a large number of spatial objects in a space (points and lines, respectively), performing some topological operations (testing for containment and intersection, respectively), and summarizing over all spatial objects to estimate \\( \\pi \\). While both approaches are probably more easily and efficiently done outside of a GIS, I thought it would be fun to try them using some of the spatial objects and spatial analysis tools in R.  
+While reading the Wikipedia page on [Monte Carlo methods](https://en.wikipedia.org/wiki/Monte_Carlo_method) recently I came across two interesting spatial approaches for estimating \\( \\pi \\). Both involve randomly placing a large number of spatial objects on a plane (points and lines, respectively), performing some topological operations (testing for containment and intersection, respectively), and summarizing over all spatial objects to estimate \\( \\pi \\). While both approaches are probably more easily and efficiently done outside of a GIS, I thought it would be fun to try them using some of the spatial objects and spatial analysis tools in R.  
 
 # Monte Carlo Methods  
 

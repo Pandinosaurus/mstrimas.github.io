@@ -26,7 +26,9 @@ title: Matt Strimas-Mackey
     <p class="post-meta">
       {{ post.date | date: "%B %-d, %Y" }} • 
       <a href="{{ post.path | prepend: site.github_repo | replace:'.md','.rmd' | replace:'/_posts/','/blob/master/_source/' }}">
-        Post source on GitHub</a>
+        Post source on GitHub</a> • 
+        <a href="{{ post.url | prepend: site.baseurl }}#disqus_thread" 
+        data-disqus-identifier="{{ page.id }}">Comments</a>
     </p>
     <p class="post-excerpt">
       {{ post.excerpt }}

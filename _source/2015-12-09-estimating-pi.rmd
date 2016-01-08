@@ -4,8 +4,8 @@ title: Estimating pi with GIS and Monte Carlo methods in R
 published: true
 excerpt: >
   Using Monte Carlo methods, randomly placed spatial objects, and topological 
-  operations in R to estimate pi  
-category: spatial
+  operations in R to estimate pi.
+category: gis
 tags: r spatial gis monte-carlo
 ---
 

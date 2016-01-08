@@ -4,8 +4,8 @@ title: Estimating pi with GIS and Monte Carlo methods in R
 published: true
 excerpt: >
   Using Monte Carlo methods, randomly placed spatial objects, and topological 
-  operations in R to estimate pi  
-category: spatial
+  operations in R to estimate pi.
+category: gis
 tags: r spatial gis monte-carlo
 ---
 
@@ -90,7 +90,7 @@ over(pts, circle) %>%
 ```
 
 ```
-#> [1] 768
+## [1] 768
 ```
 
 Alternatively, the `sp` package offers an idiom of sorts to extract the features in one geometry that are within another geometry.  
@@ -101,10 +101,10 @@ Alternatively, the `sp` package offers an idiom of sorts to extract the features
 ```
 
 ```
-#> class       : SpatialPoints 
-#> features    : 768 
-#> extent      : -0.9738448, 0.9855762, -0.9905714, 0.981201  (xmin, xmax, ymin, ymax)
-#> coord. ref. : NA
+## class       : SpatialPoints 
+## features    : 768 
+## extent      : -0.9738448, 0.9855762, -0.9905714, 0.981201  (xmin, xmax, ymin, ymax)
+## coord. ref. : NA
 ```
 
 ```r
@@ -112,7 +112,7 @@ length(pts_within)
 ```
 
 ```
-#> [1] 768
+## [1] 768
 ```
 
 In addition to these methods in the `sp` package, the `rgeos` package provides a more complete set of topological operations. `gIntersects()` tests if two geometries overlap, either overall (with `byid = F`) or at the level of individual features (with `byid = T`).  
@@ -125,7 +125,7 @@ n_within
 ```
 
 ```
-#> [1] 768
+## [1] 768
 ```
 
 Finally, taking the ratio of points within the circle to total points and multiplying by 4, gives an estimate of \\( \\pi \\).  
@@ -136,7 +136,7 @@ Finally, taking the ratio of points within the circle to total points and multip
 ```
 
 ```
-#> [1] 3.072
+## [1] 3.072
 ```
 
 ```r
@@ -144,7 +144,7 @@ round(abs(100 * (pi_est / pi - 1)), 2)
 ```
 
 ```
-#> [1] 2.22
+## [1] 2.22
 ```
 
 So, with 1000 points I get an error of about 2.22%; not too bad!  
@@ -171,8 +171,8 @@ estimate_pi(1e4)
 ```
 
 ```
-#>   pi_estimate     t
-#> 1      3.1408 0.082
+##   pi_estimate     t
+## 1      3.1408 0.084
 ```
 
 And I run this for a range of values of `n_pts`, estimating \\( \\pi \\) multiple times at each to get a sense of the variability.  
@@ -239,7 +239,7 @@ ggplot(estimate_summary, aes(x = n_pts, y = t_mean)) +
 
 <img src="/figures//2015-12-09-estimating-pi_pi-convergence-3.svg" title="plot of chunk pi-convergence" alt="plot of chunk pi-convergence" style="display: block; margin: auto;" />
 
-So, with a million points, I get an error of 0.082%; however, there is clearly an effect of diminishing returns: execution time increases linearly with number of points, but gains in precision are decreasing exponentially.  
+So, with a million points, I get an error of 0.0813%; however, there is clearly an effect of diminishing returns: execution time increases linearly with number of points, but gains in precision are decreasing exponentially.  
 
 ## Alternate method using distance  
 
@@ -263,8 +263,8 @@ estimate_pi_distance(1e5)
 ```
 
 ```
-#>   pi_estimate     t
-#> 1      3.1438 0.676
+##   pi_estimate     t
+## 1      3.1438 0.653
 ```
 
 ```r
@@ -272,8 +272,8 @@ estimate_pi(1e5)
 ```
 
 ```
-#>   pi_estimate     t
-#> 1     3.13396 0.746
+##   pi_estimate     t
+## 1     3.13396 0.742
 ```
 
 For comparison, I estimate \\( \\pi \\) at a range of numbers of points as above.  
@@ -370,7 +370,7 @@ needles <- drop_needle(n_needles, plane, l = 0.5)
 ```
 
 ```
-#> [1] 304
+## [1] 304
 ```
 
 ```r
@@ -378,7 +378,7 @@ needles <- drop_needle(n_needles, plane, l = 0.5)
 ```
 
 ```
-#> [1] 3.289474
+## [1] 3.289474
 ```
 
 ```r
@@ -386,7 +386,7 @@ round(abs(100 * (pi_est / pi - 1)), 2)
 ```
 
 ```
-#> [1] 4.71
+## [1] 4.71
 ```
 
 With 1000 needles I get an error of about 4.71%. So, this method is less precise than the circle method and it's also much slower due to the convoluted way I create the needles.  
@@ -411,8 +411,8 @@ estimate_pi_needle(1000)
 ```
 
 ```
-#>   pi_estimate    t
-#> 1    3.134796 1.22
+##   pi_estimate     t
+## 1    3.134796 1.177
 ```
 
 And estimate \\( \\pi \\) for a range of parameters.  

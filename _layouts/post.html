@@ -7,9 +7,9 @@ layout: default
     <h2 class="post-title">{{ page.title }}</h2>
     <p class="post-meta">
       <i class="fa fa-fw fa-calendar"></i>{{ page.date | date: "%B %-d, %Y" }}
-      &nbsp;
       <a href="{{ page.path | prepend: site.github_repo | replace:'.md','.rmd' | replace:'/_posts/','/blob/master/_source/' }}">
-        <i class="fa fa-fw fa-github"></i>Post source on GitHub</a>
+        <i class="fa fa-fw fa-github"></i>Post source
+      </a>
     </p>
   </header>
   <article class="post-content">

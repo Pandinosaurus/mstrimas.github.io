@@ -55,11 +55,12 @@ Regular hexagons are the closest shape to a circle that can be used for the regu
 library(sp)
 library(raster)
 library(rgeos)
+library(magrittr)
 ```
 
 ## Study region
 
-In the following demostrations, I'll use Sri Lanka as an example study area. The `getData()` function from the `raster` package downloads country boundaries from the [Global Administrative Areas (GADM) Database](http://www.gadm.org/). I clean this up a little by removing the attribute information and any polygons other than the main island of Sri Lanka.
+In the following demonstrations, I'll use Sri Lanka as an example study area. The `getData()` function from the `raster` package downloads country boundaries from the [Global Administrative Areas (GADM) Database](http://www.gadm.org/). I clean this up a little by removing the attribute information and any polygons other than the main island of Sri Lanka.
 
 ```{r study-region, echo=-1, fig.width=400/96, fig.height=600/96}
 par(mar=c(2, 2, 1, 1))
@@ -78,7 +79,7 @@ text(81.5, 9.5, "Study Area:\nSri Lanka")
 
 ### Hexagonal grids
 
-There is no function in R that will directly generate a hexagonal grid of polygons covering a given region; however, it can be accomplished by first genrating a hexagonal grid of points with `spsample`, then converting this point grid to a grid of polygons with `HexPoints2SpatialPolygons`.
+There is no function in R that will directly generate a hexagonal grid of polygons covering a given region; however, it can be accomplished by first generating a hexagonal grid of points with `spsample`, then converting this point grid to a grid of polygons with `HexPoints2SpatialPolygons`.
 
 ```{r hex-grid, echo=-1, fig.width=400/96, fig.height=600/96}
 par(mar=c(2, 2, 1, 1))
@@ -92,10 +93,10 @@ plot(hex_grid, border = "orange", add = T)
 
 A few issues arise with this simple method:
 
-1. `spsample` generates a different grid of points each time it's called because the grid offset is chosen randomly by default. This can be fixed by setting the offset parameter explicitely with `offset = c(0.5, 0.5)`.
+1. `spsample` generates a different grid of points each time it's called because the grid offset is chosen randomly by default. This can be fixed by setting the offset parameter explicitly with `offset = c(0.5, 0.5)`.
 2. Only cells whose centroid is fully within the study area polygon are created. By buffering the study area it's possible to get full coverage by the grid, which is usually what is desired.
 3. In some cases it may be desirable to clip the grid to the study area polygon so that cells on the edge match the shape of the study area. This seems to often be the case when setting up a grid of planning units for systematic reserve design. For example, the official [Marxan tutorial](http://www.uq.edu.au/marxan/intro-info) takes this approach. Clipping can be performed using `rgeos::gIntersection()`.
-4. The resolution of the grid is determined by the `cellsize` parameter, which is the distance (\\( d \\)) between centroids of neighbouring cells. Other ways of definining cell size are the area (\\( A \\)), side length (\\( s \\)), or radius (\\( r \\)), and these are all related by:
+4. The resolution of the grid is determined by the `cellsize` parameter, which is the distance (\\( d \\)) between centroids of neighbouring cells. Other ways of defining cell size are the area (\\( A \\)), side length (\\( s \\)), or radius (\\( r \\)), and these are all related by:
 
 $$
 A = \frac{3\sqrt{3}}{2}s^2=2\sqrt{3}r^2=\frac{\sqrt{3}}{2}d^2
@@ -160,13 +161,13 @@ plot(r, col = "grey50", axes = FALSE, legend = FALSE)
 plot(study_area_utm, add = TRUE)
 ```
 
-In addition to the raster formats defined in the `raster` package, the `sp` package offers several options for square grids. The class `SpatialPixels` is used for partial grids (i.e. not every cell included) and stores the coordinates of all included cell centers. `SpatialGrid` objects store full grids and do not store coordinates explicitely. Underlying both classes is the `GridTopology` class, which stores the grid template (origin, cell size, and dimensions). I never use these classes since the `raster` classes and methods are more intuitive and efficient.
+In addition to the raster formats defined in the `raster` package, the `sp` package offers several options for square grids. The class `SpatialPixels` is used for partial grids (i.e. not every cell included) and stores the coordinates of all included cell centers. `SpatialGrid` objects store full grids and do not store coordinates explicitly. Underlying both classes is the `GridTopology` class, which stores the grid template (origin, cell size, and dimensions). I never use these classes since the `raster` classes and methods are more intuitive and efficient.
 
 The final option from the `sp` package is simply to store a square grid as polygons (`SpatialPolygons` object), just as I did with the hexagonal grids above. In this case, I find the easiest way to define a grid of square polygons is to start with an empty `RasterLayer` object and coerce it to `SpatialPolygons`.
 
 ```{r square-polys}
 square_grid <- raster(study_area_utm, resolution = 25) %>% 
-  as(r, 'SpatialPolygons')
+  as('SpatialPolygons')
 ```
 
 <div class="footnotes">

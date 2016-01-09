@@ -4,7 +4,7 @@ if (file.exists('~/.Rprofile')) {
 
 library(knitr)
 library(magrittr)
-options(stringsAsFactors = FALSE)
+#options(stringsAsFactors = FALSE)
 options(knitr.table.format = 'markdown')
 
 # From: http://chepec.se/2014/07/16/knitr-jekyll.html

@@ -75,7 +75,6 @@ li {
   height: $navbar-height;
   background-color: #fff;
   border-bottom: 1px solid $border-color;
-  white-space: nowrap;
 }
 
 div.content {
@@ -85,6 +84,7 @@ div.content {
 
 .navbar div {
   line-height: $navbar-height;
+  height: $navbar-height;
   white-space: nowrap;
 }
 

@@ -84,7 +84,6 @@ div.content {
 
 .navbar div {
   line-height: $navbar-height;
-  height: $navbar-height;
   white-space: nowrap;
 }
 
@@ -92,6 +91,7 @@ div.content {
 .site-title {
   display: none;
   visibility: hidden;
+  width: 0;
 }
 
 @media (#{$bp-larger-than-phablet}) {

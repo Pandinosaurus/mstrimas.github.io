@@ -17,13 +17,11 @@ In spatial analysis, we often define [grids](https://en.wikipedia.org/wiki/Grid_
 
 From my experience, using square cells is by far the most common method for defining grids; however, other options are possible. In fact, any [regular tesselation of the plane](https://en.wikipedia.org/wiki/Euclidean_tilings_by_convex_regular_polygons) (i.e. the tiling of a plane with contiguous regular polygons of the same type), can act as a spatial grid. Tessellation is well studied mathematically and there are just [three possible regular tesselations](https://en.wikipedia.org/wiki/Euclidean_tilings_by_convex_regular_polygons#Regular_tilings): equilateral triangles, squares, and regular hexagons. A forth option is a diamond pattern arising from merging pairs of equilateral triangles; however diamonds are not regular polygons. The following images from Wikipedia<sup id="a1">[1](#f1), [2](#f2), [3](#f3)</sup> demonstrate these tessellations:
 
-```
 <div style="text-align: center">
   <img src="/img/2016-01-04-hexagonal-grids/1-uniform_n11.svg" style="width: 30%;" />
   <img src="/img/2016-01-04-hexagonal-grids/1-uniform_n5.svg" style="width: 30%;" />
   <img src="/img/2016-01-04-hexagonal-grids/1-uniform_n1.svg" style="width: 30%;" />
 </div>
-```
 
 Recently I've seen a few instances of the use of hexagonal grids, especially in systematic reserve design, and I've become curious about the benefits (and drawbacks) of using them compared to the traditional square grid. In this post I'll discuss the relative benefits and show how to generate different types of grids in R. 
 
@@ -49,15 +47,19 @@ Regular hexagons are the closest shape to a circle that can be used for the regu
 - **Better fit to curved surfaces**: when dealing with large areas, where the curvature of the earth becomes important, hexagons are better able to fit this curvature than squares. This is why soccer balls are constructed of hexagonal panels.
 - **They look badass**: it can't be denied that hexagonal grids look way more impressive than square grids!
 
-# Working with Grids in R
+# Grids in R
 
 ## Required packages
 
 ```{r packages}
+library(dplyr)
+library(tidyr)
 library(sp)
 library(raster)
 library(rgeos)
-library(magrittr)
+library(rgbif)
+library(viridis)
+library(grid)
 ```
 
 ## Study region
@@ -66,13 +68,13 @@ In the following demonstrations, I'll use Sri Lanka as an example study area. Th
 
 ```{r study-region, echo=-1, fig.width=400/96, fig.height=600/96}
 par(mar=c(2, 2, 1, 1))
-study_area <- getData("GADM", country = "LKA", level = 0, path = "data/") %>% 
+study_area <- getData("GADM", country = "LKA", level = 0, 
+                      path = "data/hexagonal-grids/") %>% 
   disaggregate() %>% 
   geometry()
 study_area <- sapply(study_area@polygons, slot, "area") %>% 
   {which(. == max(.))} %>% 
   study_area[.]
-row.names(study_area) <- "1"
 plot(study_area, col = "grey50", bg = "light blue", axes = TRUE)
 text(81.5, 9.5, "Study Area:\nSri Lanka")
 ```
@@ -213,6 +215,7 @@ make_grid <- function(x, type, cell_width, cell_area, clip = FALSE) {
 }
 ```
 
+Plotting all four types of grids that `make_grid()` can generate.
 
 ```{r square-polys, echo=-1, fig.width=600/96, fig.height=600/96}
 par(mar = c(0.25, 0.25, 0.25, 0.25), mfrow = c(2, 2))
@@ -237,6 +240,76 @@ plot(study_area_utm, col = "grey50", bg = "light blue", axes = FALSE)
 plot(sq_grid_c, border = "orange", add = TRUE)
 box()
 ```
+
+## Working with grids
+
+Once you've created a hexagonal grid, you'll likely want to aggregate some data over the grid cells. Here I demonstrate three common aggregation tasks I often run into: aggregating points, polygons, or rasters. In these examples, I'll use spatial data for Ecuador.
+
+```{r ecuador}
+ecuador <- getData(name = "GADM", country = "ECU", level = 0, 
+                   path = "data/hexagonal-grids") %>% 
+  disaggregate() %>% 
+  geometry()
+# exclude gapalapos
+ecuador <- sapply(ecuador@polygons, slot, "area") %>% 
+  {which(. == max(.))} %>% 
+  ecuador[.]
+# albers equal area for south america
+ecuador <- spTransform(ecuador, CRS(
+  paste("+proj=aea +lat_1=-5 +lat_2=-42 +lat_0=-32 +lon_0=-60",
+        "+x_0=0 +y_0=0 +ellps=aust_SA +units=km +no_defs")))
+hex_ecu <- make_grid(ecuador, type = "hexagonal", cell_area = 2500, clip = FALSE)
+```
+
+### Point density
+
+It's often necessary to summarize a set of point features (e.g. species occurrence points), over a grid by calculating the point density, i.e. the number of points within each grid cell. As an example, I'll look at bird observations in Ecuador from [eBird](http://ebird.org/content/ebird/).
+
+[eBird](http://ebird.org/) is online tool for birders to record their sightings. Each month millions of observations are entered into eBird globally, making it among the largest citizen science projects in history. The [Global Biodiversity Information Facility](http://www.gbif.org/) (GBIF) is a repository for biodiversity occurrence records. They store and provide access to hundreds of millions of records from thousands of sources, including eBird. The [rOpenSci](https://ropensci.org/) package [`rgbif`](https://ropensci.org/tutorials/rgbif_tutorial.html) provides a nice interface for importing GBIF records into R.
+
+I grab a subset of eBird sightings for 4 arbitrarily chosen bird families: tanagers ([Trochilidae](https://en.wikipedia.org/wiki/Hummingbird)), hummingbirds ([Thraupidae](https://en.wikipedia.org/wiki/Tanager)), herons ([Ardeidae](https://en.wikipedia.org/wiki/Heron)), and hawks ([Accipitridae](https://en.wikipedia.org/wiki/Accipitridae)).
+
+```{r ebird, cache=T}
+ebird_key <- "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+bird_families <- c("Trochilidae", "Thraupidae", "Ardeidae", "Accipitridae")
+families <- data_frame(family = bird_families) %>% 
+  group_by(family) %>% 
+  do(name_suggest(q = .$family, rank = "family")) %>% 
+  filter(family == canonicalName) %>% 
+  dplyr::select(family, key)
+gb <- occ_search(taxonKey = families$key, country = "EC", datasetKey = ebird_key, 
+                 limit = 3000, return = "data",
+                 fields = c("family", "species", "decimalLatitude", "decimalLongitude"),
+                 hasCoordinate = TRUE, hasGeospatialIssue = FALSE) %>% 
+  rbind_all %>% 
+  rename(lng = decimalLongitude, lat = decimalLatitude) %>% 
+  as.data.frame
+coordinates(gb) <- ~ lng + lat
+projection(gb) <- projection(study_area)
+gb <- spTransform(gb, projection(ecuador))
+```
+
+Now I summarize these sightings over the hexagonal grid to get point density, and plot the data in the form of a heat map.
+
+```{r point-density}
+fill_missing <- expand.grid(id = row.names(hex_ecu), 
+                            family = bird_families, stringsAsFactors = FALSE)
+point_density <- over(hex_ecu, gb, returnList = TRUE) %>% 
+  plyr::ldply(.fun = function(x) x, .id = "id") %>%
+  mutate(id = as.character(id)) %>% 
+  count(id, family) %>% 
+  left_join(fill_missing, ., by = c("id", "family")) %>% 
+  # log transform
+  mutate(n = ifelse(is.na(n), -1, log10(n))) %>% 
+  spread(family, n, fill = -1) %>% 
+  SpatialPolygonsDataFrame(hex_ecu, .)
+
+spplot(point_density, bird_families,
+       main = "Ecuador eBird Sightings by Family",
+       )
+```
+
+
 
 <div class="footnotes">
   <p><strong>Footnotes</strong></p>

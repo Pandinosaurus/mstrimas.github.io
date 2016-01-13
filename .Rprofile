@@ -7,8 +7,32 @@ library(magrittr)
 #options(stringsAsFactors = FALSE)
 options(knitr.table.format = 'markdown')
 
+clean_post <- function(source_rmd, fig_path) {
+  gsub('\\.rmd$', '', basename(source_rmd)) %>% 
+    list.files(path = fig_path, pattern = ., full.names = TRUE) %>% 
+    unlink
+}
+
+is_published <- function(source_rmd) {
+  published <- readLines(source_rmd, warn = FALSE, n = 25) %>% 
+    tolower %>% 
+    grep("published", ., value = TRUE) %>% 
+    sapply(function(x) grepl('true', x, fixed = TRUE))
+  if (length(published) > 0 && !published[[1]]) {
+    return(FALSE)
+  } else {
+    return(TRUE)
+  }
+}
+
+knit_fig_path <- function(input, output, fig_path = 'figures/', ...) {
+  knitr::opts_chunk$set(fig.path=fig_path)
+  knitr::knit(input = input, output = output, ...)
+  invisible()
+}
+
 # From: http://chepec.se/2014/07/16/knitr-jekyll.html
-knit_post <- function(source_rmd = '', overwrite = FALSE) {
+knit_post <- function(source_rmd = '', overwrite = FALSE, clean = TRUE) {
   # local directory of jekyll site
   site_path <- '/Users/matt/Documents/mstrimas.github.com/'
   # rmd directory (relative to base)
@@ -43,11 +67,7 @@ knit_post <- function(source_rmd = '', overwrite = FALSE) {
     collapse=FALSE)
   
   if (source_rmd == '') {
-    if (clean) {
-      list.files(fig_url) %>% 
-        unlink
-    }
-    files_rmd <- data.frame(rmd = list.files(
+    files_rmd <- dplyr::data_frame(rmd = list.files(
       path = rmd_path,
       full.names = TRUE,
       pattern = '\\.rmd$',
@@ -55,16 +75,26 @@ knit_post <- function(source_rmd = '', overwrite = FALSE) {
       recursive = FALSE))
     # create list of files to knit
     file_df <- files_rmd %>% 
+      #dplyr::group_by(rmd) %>% 
       dplyr::mutate(
         base_name = gsub('\\.rmd$', '', basename(rmd)),
         md = file.path(posts_path, paste0(base_name, '.md')),
         fig_path = file.path(fig_url, paste0(base_name, '_')),
         md_exists = file.exists(md),
-        md_render = ifelse(md_exists, overwrite, TRUE)) %>% 
+        published = sapply(rmd, is_published),
+        md_render = ifelse(published & (overwrite | !md_exists), TRUE, FALSE)) %>%
       dplyr::filter(md_render)
     
     if (nrow(file_df) == 0) {
       return(invisible())
+    }
+    
+    # clean
+    if (clean) {
+      file_df %>% 
+        dplyr::select(rmd) %>% 
+        plyr::a_ply(1, transform, clean_post(
+          source_rmd = basename(rmd), fig_path = file.path(site_path, fig_url)))
     }
     
     # knit
@@ -72,35 +102,21 @@ knit_post <- function(source_rmd = '', overwrite = FALSE) {
       dplyr::select(rmd, md, fig_path) %>% 
       plyr::a_ply(1, transform, knit_fig_path(
         input = rmd, output = md, fig_path = fig_path, quiet = TRUE))
-    # trim png files - fix whitespace issue with sp::plot()
-    # mutate(file_df, 
-    #        trim = paste0('mogrify -trim ', 
-    #                      file.path(site_path, fig_path), '*.png')) %>% 
-    #   .$trim %>% 
-    #   l_ply(system, ignore.stderr = FALSE)
   } else {
     source_rmd <- file.path(rmd_path, source_rmd)
     stopifnot(file.exists(source_rmd))
     base_name <- gsub('\\.rmd$', '', basename(source_rmd))
     md_file <- file.path(posts_path, paste0(base_name, '.md'))
     fig_path <- file.path(fig_url, paste0(base_name, '_'))
+    clean_post(source_rmd = basename(source_rmd), fig_path = file.path(site_path, fig_url))
     knit_fig_path(source_rmd, md_file, fig_path = fig_path, quiet = TRUE)
-    # trim png files - fix whitespace issue with sp::plot()
-    # paste0('mogrify -trim ', file.path(site_path, fig_path), '*.png') %>%
-    #  system
   }
   invisible()
 }
 
-knit_fig_path <- function(input, output, fig_path = 'figures/', ...) {
-  knitr::opts_chunk$set(fig.path=fig_path)
-  knitr::knit(input = input, output = output, ...)
-  invisible()
-}
-
 # improved list of objects
-.ls.objects <- function (pos = 1, pattern, order.by,
-                         decreasing=FALSE, head=FALSE, n=5) {
+lsos <- function (pos = 1, pattern, order.by = "size",
+                         decreasing = TRUE, head = TRUE, n = 10) {
   napply <- function(names, fn) sapply(names, function(x)
     fn(get(x, pos = pos)))
   names <- ls(pos = pos, pattern = pattern)
@@ -121,9 +137,4 @@ knit_fig_path <- function(input, output, fig_path = 'figures/', ...) {
   if (head)
     out <- head(out, n)
   out
-}
-
-# shorthand
-lsos <- function(..., n=10) {
-  .ls.objects(..., order.by="Size", decreasing=TRUE, head=TRUE, n=n)
 }

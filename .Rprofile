@@ -32,7 +32,7 @@ knit_fig_path <- function(input, output, fig_path = 'figures/', ...) {
 }
 
 # From: http://chepec.se/2014/07/16/knitr-jekyll.html
-knit_post <- function(source_rmd = '', overwrite = FALSE, clean = TRUE) {
+knit_post <- function(source_rmd = '', overwrite = FALSE, clean = FALSE) {
   # local directory of jekyll site
   site_path <- '/Users/matt/Documents/mstrimas.github.com/'
   # rmd directory (relative to base)
@@ -108,7 +108,9 @@ knit_post <- function(source_rmd = '', overwrite = FALSE, clean = TRUE) {
     base_name <- gsub('\\.rmd$', '', basename(source_rmd))
     md_file <- file.path(posts_path, paste0(base_name, '.md'))
     fig_path <- file.path(fig_url, paste0(base_name, '_'))
-    clean_post(source_rmd = basename(source_rmd), fig_path = file.path(site_path, fig_url))
+    if (clean) {
+      clean_post(source_rmd = basename(source_rmd), fig_path = file.path(site_path, fig_url))
+    }
     knit_fig_path(source_rmd, md_file, fig_path = fig_path, quiet = TRUE)
   }
   invisible()

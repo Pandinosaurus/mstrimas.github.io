@@ -14,6 +14,11 @@ tags: r ggplot birding
 setwd('_source/')
 ```
 
+
+```{r setup, echo = F}
+opts_chunk$set(cache.path = "cache/big-year/")
+```
+
 A [big year](https://en.wikipedia.org/wiki/Big_year) is an informal competition among birders to see the most bird species in a given geographical area between January 1st and December 31st of the same calendar year. Big years can be as big or small as the participant desires: entire countries, single provinces or states, or even your own backyard.
 
 Starting in Antarctica on January 1, 2015, American birder Noah Strycker embarked on the biggest of all big years, a [global Big Year](http://www.audubon.org/magazine/january-february-2015/welcome-birding-without-borders). His goal was to bird and travel non-stop for 365 days, visiting dozens of countries and every continent, in a quest to beat the previous record of 4,341 species. In particular, he set himself a [target of 5,000 species](http://www.audubon.org/magazine/january-february-2015/welcome-birding-without-borders), which is just under half of every bird species on earth!
@@ -135,8 +140,8 @@ unique(bigyear$country) %>%
 ```
 
 ```{r echo=F}
-#saveRDS(bigyear, '_source/data/2016-01-02-big-year/big-year.rds')
-#bigyear <- readRDS('data/2016-01-02-big-year/big-year.rds')
+#saveRDS(bigyear, '_source/data/big-year/big-year.rds')
+#bigyear <- readRDS('data/big-year/big-year.rds')
 ```
 
 # Analysis
@@ -360,15 +365,15 @@ First I download, unzip, and load shapefiles for country boundaries, graticules,
 base_url <- 'http://www.naturalearthdata.com/http//www.naturalearthdata.com/download/110m/'
 tf <- tempfile()
 download.file(paste0(base_url, 'cultural/ne_110m_admin_0_countries.zip'), tf)
-unzip(tf, exdir = 'data/2016-01-02-big-year/', overwrite = TRUE)
+unzip(tf, exdir = 'data/big-year/', overwrite = TRUE)
 unlink(tf)
 download.file(paste0(base_url, 'physical/ne_110m_graticules_all.zip'), tf)
-unzip(tf, exdir = 'data/2016-01-02-big-year/', overwrite = TRUE)
+unzip(tf, exdir = 'data/big-year/', overwrite = TRUE)
 unlink(tf)
 
-world_wgs <- shapefile('data/2016-01-02-big-year/ne_110m_admin_0_countries.shp')
-bbox_wgs <- shapefile('data/2016-01-02-big-year/ne_110m_wgs84_bounding_box.shp')
-grat_wgs <- shapefile('data/2016-01-02-big-year/ne_110m_graticules_20.shp')
+world_wgs <- shapefile('data/big-year/ne_110m_admin_0_countries.shp')
+bbox_wgs <- shapefile('data/big-year/ne_110m_wgs84_bounding_box.shp')
+grat_wgs <- shapefile('data/big-year/ne_110m_graticules_20.shp')
 ```
 
 This shapfile is more granular than I require, so I aggregate it so that each ISO alpha-2 code corresponds to a single polygon.

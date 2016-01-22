@@ -14,7 +14,6 @@ tags: r ggplot birding
 setwd('_source/')
 ```
 
-
 ```{r setup, echo = F}
 opts_chunk$set(cache.path = "cache/big-year/")
 ```

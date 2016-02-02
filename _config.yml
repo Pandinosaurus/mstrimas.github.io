@@ -15,13 +15,11 @@ disqus:               mstrimas
 
 # Jekyll build settings
 permalink:            /:categories/:title/
-relative_permalinks:  true
 markdown:             redcarpet
 redcarpet:
   extensions: ["no_intra_emphasis", "fenced_code_blocks", "autolink", "tables", "with_toc_data"]
 highlighter:          pygments
 excerpt_separator:    "<!-- more -->"
-paginate:             20
 timezone:             "America/Vancouver"
 sass:
   sass_dir:           _sass

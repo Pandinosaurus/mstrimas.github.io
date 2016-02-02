@@ -18,7 +18,7 @@ permalink:            /:categories/:title/
 markdown:             redcarpet
 redcarpet:
   extensions: ["no_intra_emphasis", "fenced_code_blocks", "autolink", "tables", "with_toc_data"]
-highlighter:          pygments
+highlighter:          rouge
 excerpt_separator:    "<!-- more -->"
 timezone:             "America/Vancouver"
 sass:

@@ -401,7 +401,7 @@ world_wk_df <- left_join(world_wk_df, country_summ,
 
 Finally, I create the map:
 
-```{r map, fig.width=960/96, fig.height=600/96}
+```{r map, img.link=T, fig.width=960/96, fig.height=600/96}
 ggplot(bbox_wk_df, aes(long, lat, group = group)) +
   geom_polygon(fill = 'light blue') +
   geom_path(data = grat_wk_df, aes(long, lat, group = group, fill = NULL), 
@@ -428,7 +428,7 @@ ggplot(bbox_wk_df, aes(long, lat, group = group)) +
 
 Far from perfect in my opinion, but not a terrible map by any means. Here's one more, with species per day.
 
-```{r map-by-day, fig.width=960/96, fig.height=600/96}
+```{r map-by-day, img.link=T, fig.width=960/96, fig.height=600/96}
 ggplot(bbox_wk_df, aes(long, lat, group = group)) +
   geom_polygon(fill = 'light blue') +
   geom_path(data = grat_wk_df, aes(long, lat, group = group, fill = NULL), 

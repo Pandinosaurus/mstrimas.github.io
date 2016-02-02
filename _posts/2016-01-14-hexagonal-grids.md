@@ -160,7 +160,7 @@ plot(hex_grid, border = "orange", add = TRUE)
 box()
 ```
 
-<img src="/figures//2016-01-14-hexagonal-grids_nice-grid-1.svg" title="plot of chunk nice-grid" alt="plot of chunk nice-grid" style="display: block; margin: auto;" />
+<img src="/figures//2016-01-14-hexagonal-grids_nice-grid-1.png" title="plot of chunk nice-grid" alt="plot of chunk nice-grid" style="display: block; margin: auto;" />
 
 ### Square grid
 
@@ -250,7 +250,7 @@ plot(sq_grid_c, border = "orange", add = TRUE)
 box()
 ```
 
-<img src="/figures//2016-01-14-hexagonal-grids_square-polys-1.svg" title="plot of chunk square-polys" alt="plot of chunk square-polys" style="display: block; margin: auto;" />
+<img src="/figures//2016-01-14-hexagonal-grids_square-polys-1.png" title="plot of chunk square-polys" alt="plot of chunk square-polys" style="display: block; margin: auto;" />
 
 ## Working with grids
 

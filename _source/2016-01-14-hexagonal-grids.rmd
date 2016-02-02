@@ -13,11 +13,6 @@ tags: r spatial gis
 setwd("_source/")
 ```
 
-
-```{r setup, echo = F}
-opts_chunk$set(cache.path = "cache/hexagonal-grids/")
-```
-
 In spatial analysis, we often define [grids](https://en.wikipedia.org/wiki/Grid_(spatial_index)) of points or polygons to sample, index, or partition a study area. For example, we may want to overlay a study area with a grid of points as part of some regular spatial sampling scheme, divide a large region into smaller units for indexing purposes as with UTM grid zones, or slice the study area into subunits over which we summarize a spatial variable. In the latter scenario, the most common approach is to use a raster format, in which a grid of uniform square cells is overlayed on a study area and each cell is assigned a value for the spatial variables of interest. In ecology and conservation applications, variables may include number of individuals of a threatened species per grid cell, elevation, mean annual rainfall, or land use.
 
 From my experience, using square cells is by far the most common method for defining grids; however, other options are possible. In fact, any [regular tesselation of the plane](https://en.wikipedia.org/wiki/Euclidean_tilings_by_convex_regular_polygons) (i.e. the tiling of a plane with contiguous regular polygons of the same type), can act as a spatial grid. Tessellation is well studied mathematically and there are just [three possible regular tesselations](https://en.wikipedia.org/wiki/Euclidean_tilings_by_convex_regular_polygons#Regular_tilings): equilateral triangles, squares, and regular hexagons. A forth option is a diamond pattern arising from merging pairs of equilateral triangles; however diamonds are not regular polygons. The following images from Wikipedia<sup id="a1">[1](#f1), [2](#f2), [3](#f3)</sup> demonstrate these tessellations:
@@ -145,7 +140,7 @@ make_grid <- function(x, cell_diameter, cell_area, clip = FALSE) {
 
 Using this function I generate a grid of \\( 625km^2 \\) (\\( 25km \\) by \\( 25km \\)) cells with and without clipping. This requires projecting the study area polygon to measure distance in kilometers.
 
-```{r nice-grid, cache=T, echo=-1, fig.width=600/96, fig.height=600/96}
+```{r nice-grid, cache=T, dev='png', echo=-1, fig.width=600/96, fig.height=600/96}
 par(mar = c(0.25, 0.25, 0.25, 0.25), mfrow = c(1, 2))
 study_area_utm <- CRS("+proj=utm +zone=44 +datum=WGS84 +units=km +no_defs") %>% 
   spTransform(study_area, .)
@@ -222,7 +217,7 @@ make_grid <- function(x, type, cell_width, cell_area, clip = FALSE) {
 
 Plotting all four types of grids that `make_grid()` can generate.
 
-```{r square-polys, cache=T, echo=-1, fig.width=600/96, fig.height=600/96}
+```{r square-polys, cache=T, dev="png", echo=-1, fig.width=600/96, fig.height=600/96}
 par(mar = c(0.25, 0.25, 0.25, 0.25), mfrow = c(2, 2))
 # hex - without clipping
 hex_grid <- make_grid(study_area_utm, type = "hexagonal", cell_area = 625, clip = FALSE)

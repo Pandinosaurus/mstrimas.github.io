@@ -15,7 +15,7 @@ disqus:               mstrimas
 
 # Jekyll build settings
 permalink:            /:categories/:title/
-markdown:             redcarpet
+markdown:             redcarpet #kramdown
 redcarpet:
   extensions: ["no_intra_emphasis", "fenced_code_blocks", "autolink", "tables", "with_toc_data"]
 highlighter:          rouge

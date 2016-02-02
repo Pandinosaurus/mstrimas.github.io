@@ -20,6 +20,10 @@ Wikipedia has the answer (no surprise) in the form of a table listing the [top 3
 
 Of course, I couldn't resist scraping these data from Wikipedia and mapping the flights. I'll use this opportunity to practice plotting with ggplot, since I've recently been trying to gain more experience using this package for mapping spatial data.
 
+**Note:** while in the process of making this map, I found a post on the [Vizual Statistix](http://vizual-statistix.tumblr.com/search/flights) blog with a very similar idea. However, he doesn't discuss how the map is map or provide source code.
+
+**If you don't care about R, [skip to the bottom](#finishing-touches) for the final map.**
+
 ## Required packages
 
 ```{r packages, cahce=F}

@@ -12,11 +12,9 @@ tags: r spatial gis
 
 
 
+On more than one occasion I've taken the brutally long-haul flight from Toronto to Hong Kong with Air Canada. Given that I'm totally unable to sleep on planes, almost 16 hours crammed into a tiny economy class seat is pretty rough! This got me thinking: what is the longest regularly scheduled, commercial long-haul flight?
 
-
-On more than one occasion I've taken the brutally long-haul flight from Toronto to Hong Kong with Air Canada. Given that I'm totally unable to sleep on planes, almost 16 hours crammed into a tiny economy class seat is pretty rough! This got me thinking: what is the longest regularly scheduled, commericial long-haul flight?
-
-Wikipedia has the answer (no surprise) in the form of a table listing the [top 30 longest flights by distance](https://en.wikipedia.org/wiki/Non-stop_flight#Longest_flights). Turns out the longest flight is from Dallas to Syndey, clocking in at almost 17hours. This is 1.5 hours longer than my Hong Kong-Toronto flight, which comes in at number 24 on the list.
+Wikipedia has the answer (no surprise) in the form of a table listing the [top 30 longest flights by distance](https://en.wikipedia.org/wiki/Non-stop_flight#Longest_flights). Turns out the longest flight is from Dallas to Sydney, clocking in at almost 17hours and 13,804 km. This is 1.5 hours longer than my Hong Kong-Toronto flight, which comes in at number 24 on the list.
 
 Of course, I couldn't resist scraping these data from Wikipedia and mapping the flights. I'll use this opportunity to practice plotting with ggplot, since I've recently been trying to gain more experience using this package for mapping spatial data.
 
@@ -36,7 +34,6 @@ library(stringr)
 library(tidyr)
 library(lubridate)
 library(ggplot2)
-library(scales)
 library(ggmap)
 library(ggrepel)
 library(ggalt)
@@ -55,9 +52,9 @@ flights <- read_html('https://en.wikipedia.org/wiki/Non-stop_flight') %>%
   html_table(fill = TRUE)
 ```
 
-As usual there are some issues with the imported data. First, the Wikipedia table has cells spanning multiple rows corresponding to flights on the same route with different airlines. The `rvest` explicitely states that it can't handle rows spanning multiple columns. In addition, the column headers are not nice variable names.
+As usual there are some issues with the imported data. First, the Wikipedia table has cells spanning multiple rows corresponding to flights on the same route with different airlines. The `rvest` help explicitly states that it can't handle rows spanning multiple columns. In addition, the column headers are not nice variable names.
 
-<img src="/img/multi-row-cell.png" style="display: block; margin: auto;" />
+<img src="/img/long-flights/multi-row-cell.png" style="display: block; margin: auto;" />
 
 I fix these issues below.
 
@@ -206,7 +203,7 @@ flights_unique <- flights %>%
   filter(row_number(desc(duration)) == 1)
 ```
 
-Then I use the `geosphere` package to get great circle routes for each of the above flights. Since flights over the pacific cross the International Date Line, I use `breakAtDateLine = TRUE` so ensure the great circle lines are broken as they cross.
+Then I use the `geosphere` package to get great circle routes for each of the above flights. Since flights over the Pacific cross the International Date Line, I use `breakAtDateLine = TRUE` to ensure the great circle lines are broken as they cross.
 
 
 ```r
@@ -271,21 +268,18 @@ ggplot() +
         axis.ticks = element_blank())
 ```
 
-<img src="/figures//2016-02-01-long-flights_first-map-1.svg" title="plot of chunk first-map" alt="plot of chunk first-map" style="display: block; margin: auto;" />
+<img src="/figures//long-flights_first-map-1.svg" title="plot of chunk first-map" alt="plot of chunk first-map" style="display: block; margin: auto;" />
 
 Looks OK, but there's tons of room for improvement.
 
 ## Changing central meridian
 
-The default Winkel-Tripel projection takes the Greenich Prime Meridian as it's central meridian. This is a poor choice in this case since every route has a North American City at one end, which results in many of the routes going off the edge of the map. Centering the map on the US (around 90°W) seems the best bet, but this puts the edges of the map at 90°E, right in the middle of Asia. This makes a mess of the polygons spanning the edge.
+The default Kavrayskiy VII projection takes the Greenwich Prime Meridian as its central meridian. This is a poor choice in this case since every route has a North American City at one end, which results in many of the routes going off the edge of the map. Centering the map on the US (around 90°W) seems the best bet, but this puts the edges of the map at 90°E, right in the middle of Asia. This makes a mess of the polygons spanning the edge.
 
 
 ```r
 central_meridian <- -90
 proj <- sprintf("+proj=kav7 +lon_0=%i", central_meridian)
-# proj <- sprintf("+proj=wag5 +lon_0=%i", central_meridian)
-# proj <- sprintf("+proj=natearth +lon_0=%i", central_meridian)
-#proj <- sprintf("+proj=wintri +lon_0=%i", central_meridian)
 ggplot() +
   geom_polygon(data = world_df, aes(long, lat, group = group), 
                fill = "grey80", color = "grey60", size = 0.1) +
@@ -298,9 +292,9 @@ ggplot() +
         axis.ticks = element_blank())
 ```
 
-<img src="/figures//2016-02-01-long-flights_messy-boundary-1.svg" title="plot of chunk messy-boundary" alt="plot of chunk messy-boundary" style="display: block; margin: auto;" />
+<img src="/figures//long-flights_messy-boundary-1.svg" title="plot of chunk messy-boundary" alt="plot of chunk messy-boundary" style="display: block; margin: auto;" />
 
-Sorting this issue out turned out to be a much bigger issue than I expected; it seems there's no elegant solution in R. The `nowrapRecenter()` function from the `maptools` package is meant to address this issue, but it only appears to work when the date line is the new center and it still leads to artifacts when the data are projected. Simply removing a small sliver of the polygons at what will become the edge in the new projection works, but this means removing data, it results in a world map that looks chopped off at the edges, and gives at seam at the date line.
+Sorting this issue out turned out to be a much bigger challenge than I expected; it seems there's no elegant solution in R. The `nowrapRecenter()` function from the `maptools` package is meant to address this issue, but it only appears to work when the date line is the new center and it still leads to artifacts when the data are projected. Simply removing a small sliver of the polygons at what will become the edge in the new projection works, but this means removing data, it results in a world map that looks chopped off at the edges, and gives a seam at the date line.
 
 
 ```r
@@ -336,9 +330,9 @@ ggplot() +
   coord_proj(proj)
 ```
 
-<img src="/figures//2016-02-01-long-flights_trim_edge-1.svg" title="plot of chunk trim_edge" alt="plot of chunk trim_edge" style="display: block; margin: auto;" />
+<img src="/figures//long-flights_trim_edge-1.svg" title="plot of chunk trim_edge" alt="plot of chunk trim_edge" style="display: block; margin: auto;" />
 
-Pretty close, but I'm quite picky about aesthetics so this isn't going to cut it! And, plotting the flight routes using this re-centered projection. After much frustation, I went with a very hacky solution, which requires two functions that split the map into two at what will become the new edge, project it, then manually flip polygon vertices on the left edge that should actually be on the right edge.
+Pretty close, but I'm quite picky about aesthetics so this isn't going to cut it! After much frustration, I went with a fairly hacky solution, which requires two functions that split the map into two at what will become the new edge, project it, then manually flip polygon vertices on the left edge that should actually be on the right edge.
 
 
 ```r
@@ -453,20 +447,36 @@ project_recenter <- function(x, proj, union_field, union_scale = getScale()) {
 }
 ```
 
-A lot of work for such a seemingly simple task. Unfortunately, this approach means moving away from the lovely `coord_proj()` function from the new `ggalt` package. On the up side, I believe this aproach is fairly general and produces the nicest results.
+A lot of work for such a seemingly simple task! Unfortunately, this approach means moving away from the lovely `coord_proj()` function from the new `ggalt` package. On the up side, I believe this approach is fairly general and produces the nicest results. Before I proceed, I need to reproject the routes and points. Furthermore, I no longer want the routes to be split at the Date Line, so I regenerate them.
+
+
+```r
+# routes
+routes_nodl <- gcIntermediate(flights_unique[c("lng_from", "lat_from")],
+                              flights_unique[c("lng_to", "lat_to")],
+                              n = 360, addStartEnd = TRUE, sp = TRUE, 
+                              breakAtDateLine = FALSE)
+routes_nodl <- SpatialLinesDataFrame(routes_nodl, 
+                                     data.frame(rank = flights_unique$rank,
+                                                route = flights_unique$route,
+                                                stringsAsFactors = FALSE))
+row.names(routes_nodl) <- as.character(routes_nodl$rank)
+routes_kav_df <- spTransform(routes_nodl, proj) %>% 
+  fortify
+# cities
+cities_wgs <- cities
+coordinates(cities_wgs) <- ~ lon + lat
+projection(cities_wgs) <- projection(world)
+cities_kav_df <- spTransform(cities_wgs, proj) %>% 
+  as.data.frame
+```
+
 
 
 ```r
 world_kav_df <- project_recenter(world, proj, union_field = "sov_a3", 
                                  union_scale = 1e6) %>% 
   fortify
-routes_kav_df <- spTransform(gc_routes, proj) %>% 
-  fortify
-cities_wgs <- cities
-coordinates(cities_wgs) <- ~ lon + lat
-projection(cities_wgs) <- projection(world)
-cities_kav_df <- spTransform(cities_wgs, proj) %>% 
-  as.data.frame
 ggplot() +
   geom_polygon(data = world_kav_df, aes(long, lat, group = group), 
                fill = "grey80", color = "grey60", size = 0.1) +
@@ -482,7 +492,7 @@ ggplot() +
         axis.ticks = element_blank())
 ```
 
-<img src="/figures//2016-02-01-long-flights_meridian-1.svg" title="plot of chunk meridian" alt="plot of chunk meridian" style="display: block; margin: auto;" />
+<img src="/figures//long-flights_meridian-1.svg" title="plot of chunk meridian" alt="plot of chunk meridian" style="display: block; margin: auto;" />
 
 ## Bounding box and graticules
 
@@ -555,7 +565,7 @@ grat <- make_graticules(seq(-150, 180, 30), seq(-90, 90, 30),
                         spacing = c(10, 1), proj = projection(world))
 ```
 
-These will also need to be projected, recentered, and converted to data frames for ggplot.
+These will also need to be projected, re-centered, and converted to data frames for ggplot.
 
 
 ```r
@@ -587,13 +597,13 @@ ggplot() +
   theme_nothing()
 ```
 
-<img src="/figures//2016-02-01-long-flights_add-bbox-1.svg" title="plot of chunk add-bbox" alt="plot of chunk add-bbox" style="display: block; margin: auto;" />
+<img src="/figures//long-flights_add-bbox-1.svg" title="plot of chunk add-bbox" alt="plot of chunk add-bbox" style="display: block; margin: auto;" />
 
 Finally, after a huge amount of work, this North America centered projection is looking good.
 
 ## Finishing touches
 
-Now for the finishing touches: adding nicer labels with `ggrepel`, fine tuning the overall formating, and colouring the routes according to duration. This last task requires joining the flight attribute data to the data frame of spatial data.
+Now for the finishing touches: adding nicer labels with `ggrepel`, fine tuning the overall formatting, and colouring the routes according to duration. This last task requires joining the flight attribute data to the data frame of spatial data.
 
 
 ```r
@@ -641,7 +651,7 @@ ggplot() +
   theme(text = element_text(family = "Helvetica"),
         plot.margin = unit(c(0, 0, 0, 0), "lines"),
         # position legend within plot
-        legend.position = c(0.5, 0.25),
+        legend.position = c(0.5, 0.13),
         legend.direction = "horizontal",
         legend.background = element_rect(color = "grey20"),
         legend.title = element_text(size = 16, lineheight = 0.1),
@@ -658,34 +668,35 @@ ggplot() +
         plot.background = element_blank())
 ```
 
-<img src="/figures//2016-02-01-long-flights_final-1.png" title="plot of chunk final" alt="plot of chunk final" style="display: block; margin: auto;" />
+<a href="/figures//long-flights_final-1.png"><img src="/figures//long-flights_final-1.png" title="plot of chunk final" alt="plot of chunk final" style="display: block; margin: auto;" /></a>
 
 
-| rank|route                   |airline               | distance (km)| duration (min)|
-|----:|:-----------------------|:---------------------|-------------:|--------------:|
-|    1|Dallas-Sydney           |Qantas                |        13,804|          1,015|
-|    2|Johannesburg-Atlanta    |Delta Air Lines       |        13,582|          1,000|
-|    3|Abu Dhabi-Los Angeles   |Etihad Airways        |        13,502|            990|
-|    4|Dubai-Los Angeles       |Emirates              |        13,420|            995|
-|    5|Jeddah-Los Angeles      |Saudia                |        13,409|          1,015|
-|    6|Doha-Los Angeles        |Qatar Airways         |        13,367|            985|
-|    7|Dubai-Houston           |Emirates              |        13,144|            980|
-|    8|Abu Dhabi-San Francisco |Etihad Airways        |        13,128|            975|
-|    9|Dallas-Hong Kong        |American Airlines     |        13,072|          1,025|
-|   10|Dubai-San Francisco     |Emirates              |        13,041|            950|
-|   11|New York-Hong Kong      |Cathay Pacific        |        12,983|            975|
-|   12|Newark-Hong Kong        |United Airlines       |        12,980|            960|
-|   13|Abu Dhabi-Dallas        |Etihad Airways        |        12,962|            980|
-|   14|Doha-Houston            |Qatar Airways         |        12,951|            980|
-|   15|Dubai-Dallas            |Emirates              |        12,940|            980|
-|   16|New York-Guangzhou      |China Southern        |        12,878|            965|
-|   17|Boston-Hong Kong        |Cathay Pacific        |        12,827|            950|
-|   18|Johannesburg-New York   |South African Airways |        12,825|            965|
-|   19|Houston-Taipei          |EVA Air               |        12,776|            955|
-|   20|Doha-Dallas             |Qatar Airways         |        12,764|            980|
-|   21|Los Angeles-Melbourne   |Qantas                |        12,748|            950|
-|   22|Toronto-Hong Kong       |Air Canada            |        12,569|            935|
-|   23|New York-Taipei         |EVA Air               |        12,566|            970|
-|   24|Mumbai-Newark           |United Airlines       |        12,565|            965|
-|   25|Chicago-Hong Kong       |United Airlines       |        12,542|            925|
+| rank|route                   |airline               | distance (km)| duration (hours)|
+|----:|:-----------------------|:---------------------|-------------:|----------------:|
+|    1|Dallas-Hong Kong        |American Airlines     |        13,072|            17.08|
+|    2|Dallas-Sydney           |Qantas                |        13,804|            16.92|
+|    3|Jeddah-Los Angeles      |Saudia                |        13,409|            16.92|
+|    4|Johannesburg-Atlanta    |Delta Air Lines       |        13,582|            16.67|
+|    5|Dubai-Los Angeles       |Emirates              |        13,420|            16.58|
+|    6|Abu Dhabi-Los Angeles   |Etihad Airways        |        13,502|            16.50|
+|    7|Doha-Los Angeles        |Qatar Airways         |        13,367|            16.42|
+|    8|Dubai-Houston           |Emirates              |        13,144|            16.33|
+|    9|Abu Dhabi-Dallas        |Etihad Airways        |        12,962|            16.33|
+|   10|Doha-Houston            |Qatar Airways         |        12,951|            16.33|
+|   11|Dubai-Dallas            |Emirates              |        12,940|            16.33|
+|   12|Doha-Dallas             |Qatar Airways         |        12,764|            16.33|
+|   13|Abu Dhabi-San Francisco |Etihad Airways        |        13,128|            16.25|
+|   14|New York-Hong Kong      |Cathay Pacific        |        12,983|            16.25|
+|   15|New York-Taipei         |EVA Air               |        12,566|            16.17|
+|   16|New York-Guangzhou      |China Southern        |        12,878|            16.08|
+|   17|Johannesburg-New York   |South African Airways |        12,825|            16.08|
+|   18|Mumbai-Newark           |United Airlines       |        12,565|            16.08|
+|   19|Newark-Hong Kong        |United Airlines       |        12,980|            16.00|
+|   20|Houston-Taipei          |EVA Air               |        12,776|            15.92|
+|   21|Dubai-San Francisco     |Emirates              |        13,041|            15.83|
+|   22|Boston-Hong Kong        |Cathay Pacific        |        12,827|            15.83|
+|   23|Los Angeles-Melbourne   |Qantas                |        12,748|            15.83|
+|   24|Toronto-Hong Kong       |Air Canada            |        12,569|            15.58|
+|   25|Chicago-Hong Kong       |United Airlines       |        12,542|            15.42|
 
+Overall, I'm increasingly impressed with ggplot as a tool for mapping and I think the new packages [ggalt](https://github.com/hrbrmstr/ggalt) and [ggrepel](https://github.com/slowkow/ggrepel) are great additions. Unfortunately, making a map with a non-standard central meridian is a huge pain in R, but in the end I'm quite happy with the results!

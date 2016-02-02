@@ -6,10 +6,16 @@ library(knitr)
 library(magrittr)
 options(knitr.table.format = 'markdown')
 
-clean_post <- function(source_rmd, fig_path) {
-  gsub('\\.rmd$', '', basename(source_rmd)) %>% 
+clean_post <- function(prefix, fig_path) {
+  paste0("^", prefix) %>% 
     list.files(path = fig_path, pattern = ., full.names = TRUE) %>% 
     unlink
+}
+
+post_title <- function(source_rmd) {
+  basename(source_rmd) %>% 
+  sub("^[0-9]+-[0-9]+-[0-9]+-", "", .) %>% 
+    sub("\\.rmd$", "", ., ignore.case = TRUE)
 }
 
 is_published <- function(source_rmd) {
@@ -66,13 +72,13 @@ knit_post <- function(source_rmd = '', overwrite = FALSE, clean = FALSE) {
     fig.width=480/96,
     fig.height=480/96,
     dev='svg',
-    comment='##',
+    comment='#>',
     tidy=FALSE,
     cache=FALSE,
     error=TRUE,
     warning=TRUE,
     message=FALSE,
-    collapse=FALSE)
+    collapse=TRUE)
   
   if (source_rmd == '') {
     files_rmd <- dplyr::data_frame(rmd = list.files(
@@ -86,9 +92,10 @@ knit_post <- function(source_rmd = '', overwrite = FALSE, clean = FALSE) {
       #dplyr::group_by(rmd) %>% 
       dplyr::mutate(
         base_name = gsub('\\.rmd$', '', basename(rmd)),
+        title = post_title(rmd),
         md = file.path(posts_path, paste0(base_name, '.md')),
-        fig_path = file.path(fig_url, paste0(base_name, '_')),
-        cache_path = file.path(rmd_path, "cache", paste0(base_name, '/')),
+        fig_path = file.path(fig_url, paste0(title, '_')),
+        cache_path = file.path(rmd_path, "cache", paste0(title, '/')),
         md_exists = file.exists(md),
         published = sapply(rmd, is_published),
         md_render = ifelse(published & (overwrite | !md_exists), TRUE, FALSE)) %>%
@@ -101,25 +108,28 @@ knit_post <- function(source_rmd = '', overwrite = FALSE, clean = FALSE) {
     # clean
     if (clean) {
       file_df %>% 
-        dplyr::select(rmd) %>% 
+        dplyr::select(rmd, title) %>% 
         plyr::a_ply(1, transform, clean_post(
-          source_rmd = basename(rmd), fig_path = file.path(site_path, fig_url)))
+          prefix = title, fig_path = file.path(site_path, fig_url)))
     }
     
     # knit
     file_df %>% 
-      dplyr::select(rmd, md, fig_path) %>% 
-      plyr::a_ply(1, transform, knit_fig_path(
-        input = rmd, output = md, fig_path = fig_path, cache_path = cache_path, quiet = TRUE))
+      dplyr::select(rmd, md, fig_path, cache_path) %>% 
+      plyr::a_ply(1, transform, 
+                  knit_fig_path(
+                    input = rmd, output = md, fig_path = fig_path, 
+                    cache_path = cache_path, quiet = TRUE))
   } else {
     source_rmd <- file.path(rmd_path, source_rmd)
     stopifnot(file.exists(source_rmd))
     base_name <- gsub('\\.rmd$', '', basename(source_rmd))
+    title <- post_title(source_rmd)
     md_file <- file.path(posts_path, paste0(base_name, '.md'))
-    fig_path <- file.path(fig_url, paste0(base_name, '_'))
-    cache_path <- file.path(rmd_path, 'cache', paste0(base_name, '/'))
+    fig_path <- file.path(fig_url, paste0(title, '_'))
+    cache_path <- file.path(rmd_path, 'cache', paste0(title, '/'))
     if (clean) {
-      clean_post(source_rmd = basename(source_rmd), fig_path = file.path(site_path, fig_url))
+      clean_post(prefix = title, fig_path = file.path(site_path, fig_url))
     }
     knit_fig_path(source_rmd, md_file, fig_path = fig_path, cache_path = cache_path, quiet = TRUE)
   }

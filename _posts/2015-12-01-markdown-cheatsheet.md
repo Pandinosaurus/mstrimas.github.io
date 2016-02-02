@@ -113,7 +113,7 @@ y <- 2 * x + 1 + rnorm(100, mean = 0.5, sd = 0.1)
 plot(x, y)
 ```
 
-<img src="/figures//2015-12-01-markdown-cheatsheet_unnamed-chunk-1-1.svg" title="plot of chunk unnamed-chunk-1" alt="plot of chunk unnamed-chunk-1" style="display: block; margin: auto;" />
+<img src="/figures//markdown-cheatsheet_unnamed-chunk-1-1.svg" title="plot of chunk unnamed-chunk-1" alt="plot of chunk unnamed-chunk-1" style="display: block; margin: auto;" />
 
 Inline code can also be dynamic, for example this is the mean miles per gallon of cars in the `mtcars` dataset: 20.091.
 

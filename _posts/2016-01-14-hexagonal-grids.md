@@ -16,9 +16,9 @@ In spatial analysis, we often define [grids](https://en.wikipedia.org/wiki/Grid_
 From my experience, using square cells is by far the most common method for defining grids; however, other options are possible. In fact, any [regular tesselation of the plane](https://en.wikipedia.org/wiki/Euclidean_tilings_by_convex_regular_polygons) (i.e. the tiling of a plane with contiguous regular polygons of the same type), can act as a spatial grid. Tessellation is well studied mathematically and there are just [three possible regular tesselations](https://en.wikipedia.org/wiki/Euclidean_tilings_by_convex_regular_polygons#Regular_tilings): equilateral triangles, squares, and regular hexagons. A forth option is a diamond pattern arising from merging pairs of equilateral triangles; however diamonds are not regular polygons. The following images from Wikipedia<sup id="a1">[1](#f1), [2](#f2), [3](#f3)</sup> demonstrate these tessellations:
 
 <div style="text-align: center">
-  <img src="/img/2016-01-04-hexagonal-grids/1-uniform_n11.svg" style="width: 30%;" />
-  <img src="/img/2016-01-04-hexagonal-grids/1-uniform_n5.svg" style="width: 30%;" />
-  <img src="/img/2016-01-04-hexagonal-grids/1-uniform_n1.svg" style="width: 30%;" />
+  <img src="/img/hexagonal-grids/1-uniform_n11.svg" style="width: 30%;" />
+  <img src="/img/hexagonal-grids/1-uniform_n5.svg" style="width: 30%;" />
+  <img src="/img/hexagonal-grids/1-uniform_n1.svg" style="width: 30%;" />
 </div>
 
 Recently I've seen a few instances of the use of **hexagonal grids**, especially in systematic reserve design, and I've become curious about the benefits (and drawbacks) of using them compared to traditional square grids. In this post I'll discuss the relative benefits and show how to generate different types of grids in R. 
@@ -60,6 +60,7 @@ library(rgbif)
 library(viridis)
 library(gridExtra)
 library(rasterVis)
+set.seed(1)
 ```
 
 
@@ -71,8 +72,8 @@ In the following demonstrations, I'll use Sri Lanka as an example study area. Th
 ```r
 study_area <- getData("GADM", country = "LKA", level = 0, 
                       path = "data/hexagonal-grids/") %>% 
-  disaggregate() %>% 
-  geometry()
+  disaggregate %>% 
+  geometry
 study_area <- sapply(study_area@polygons, slot, "area") %>% 
   {which(. == max(.))} %>% 
   study_area[.]
@@ -80,7 +81,7 @@ plot(study_area, col = "grey50", bg = "light blue", axes = TRUE)
 text(81.5, 9.5, "Study Area:\nSri Lanka")
 ```
 
-<img src="/figures//2016-01-14-hexagonal-grids_study-region-1.svg" title="plot of chunk study-region" alt="plot of chunk study-region" style="display: block; margin: auto;" />
+<img src="/figures//hexagonal-grids_study-region-1.svg" title="plot of chunk study-region" alt="plot of chunk study-region" style="display: block; margin: auto;" />
 
 ## Creating grids
 
@@ -98,7 +99,7 @@ plot(hex_points, col = "black", pch = 20, cex = 0.5, add = T)
 plot(hex_grid, border = "orange", add = T)
 ```
 
-<img src="/figures//2016-01-14-hexagonal-grids_hex-grid-1.svg" title="plot of chunk hex-grid" alt="plot of chunk hex-grid" style="display: block; margin: auto;" />
+<img src="/figures//hexagonal-grids_hex-grid-1.svg" title="plot of chunk hex-grid" alt="plot of chunk hex-grid" style="display: block; margin: auto;" />
 
 A few issues arise with this simple method:
 
@@ -160,7 +161,7 @@ plot(hex_grid, border = "orange", add = TRUE)
 box()
 ```
 
-<img src="/figures//2016-01-14-hexagonal-grids_nice-grid-1.png" title="plot of chunk nice-grid" alt="plot of chunk nice-grid" style="display: block; margin: auto;" />
+<img src="/figures//hexagonal-grids_nice-grid-1.png" title="plot of chunk nice-grid" alt="plot of chunk nice-grid" style="display: block; margin: auto;" />
 
 ### Square grid
 
@@ -174,7 +175,7 @@ plot(r, col = "grey50", axes = FALSE, legend = FALSE, bty="n", box=FALSE)
 plot(study_area_utm, add = TRUE)
 ```
 
-<img src="/figures//2016-01-14-hexagonal-grids_raster-1.png" title="plot of chunk raster" alt="plot of chunk raster" style="display: block; margin: auto;" />
+<img src="/figures//hexagonal-grids_raster-1.png" title="plot of chunk raster" alt="plot of chunk raster" style="display: block; margin: auto;" />
 
 In addition to the raster formats defined in the `raster` package, the `sp` package offers several options for square grids. The class `SpatialPixels` is used for partial grids (i.e. not every cell included) and stores the coordinates of all included cell centers. `SpatialGrid` objects store full grids and do not store coordinates explicitly. Underlying both classes is the `GridTopology` class, which stores the grid template (origin, cell size, and dimensions). I never use these classes since the `raster` classes and methods are more intuitive and efficient.
 
@@ -250,7 +251,7 @@ plot(sq_grid_c, border = "orange", add = TRUE)
 box()
 ```
 
-<img src="/figures//2016-01-14-hexagonal-grids_square-polys-1.png" title="plot of chunk square-polys" alt="plot of chunk square-polys" style="display: block; margin: auto;" />
+<img src="/figures//hexagonal-grids_square-polys-1.png" title="plot of chunk square-polys" alt="plot of chunk square-polys" style="display: block; margin: auto;" />
 
 ## Working with grids
 
@@ -260,8 +261,8 @@ Once you've created a hexagonal grid, you'll likely want to aggregate some data 
 ```r
 ecuador <- getData(name = "GADM", country = "ECU", level = 0, 
                    path = "data/hexagonal-grids/") %>% 
-  disaggregate() %>% 
-  geometry()
+  disaggregate %>% 
+  geometry
 # exclude gapalapos
 ecuador <- sapply(ecuador@polygons, slot, "area") %>% 
   {which(. == max(.))} %>% 
@@ -337,7 +338,7 @@ spplot(point_density, bird_families,
        )
 ```
 
-<img src="/figures//2016-01-14-hexagonal-grids_point-density-1.png" title="plot of chunk point-density" alt="plot of chunk point-density" width="600" style="display: block; margin: auto;" />
+<img src="/figures//hexagonal-grids_point-density-1.png" title="plot of chunk point-density" alt="plot of chunk point-density" width="600" style="display: block; margin: auto;" />
 
 I've used `spplot()` here, and chosen to use a logarithmic scale, which means a big mess of legend parameters. Unfortunately, the data aren't all that interesting, though I think the maps are pretty!
 
@@ -400,7 +401,7 @@ p2 <- spplot(hex_cover, "pct_cover", col = "white", lwd = 0.5,
 grid.arrange(p1, p2, ncol = 2, top = "Ecuador: Coverage by Pastaza State")
 ```
 
-<img src="/figures//2016-01-14-hexagonal-grids_cover-plots-1.png" title="plot of chunk cover-plots" alt="plot of chunk cover-plots" width="600" style="display: block; margin: auto;" />
+<img src="/figures//hexagonal-grids_cover-plots-1.png" title="plot of chunk cover-plots" alt="plot of chunk cover-plots" width="600" style="display: block; margin: auto;" />
 
 Again, these data are not very interesting, but the example is illustrative.
 
@@ -443,7 +444,7 @@ p2 <- spplot(hex_srtm,
 grid.arrange(p1, p2, ncol = 2, top = "Ecuador SRTM Elevation (m)")
 ```
 
-<img src="/figures//2016-01-14-hexagonal-grids_extract-1.png" title="plot of chunk extract" alt="plot of chunk extract" width="600" style="display: block; margin: auto;" />
+<img src="/figures//hexagonal-grids_extract-1.png" title="plot of chunk extract" alt="plot of chunk extract" width="600" style="display: block; margin: auto;" />
 
 The raster package makes this aggregation task extremely easy, just a single line of code! I've also used `levelplot()` from `rasterVis`, which provides a nice system for mapping raster data.
 

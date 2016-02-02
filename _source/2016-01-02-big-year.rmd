@@ -10,14 +10,6 @@ category: r
 tags: r ggplot birding
 ---
 
-```{r echo = F, include = F, eval = F}
-setwd('_source/')
-```
-
-```{r setup, echo = F}
-opts_chunk$set(cache.path = "cache/big-year/")
-```
-
 A [big year](https://en.wikipedia.org/wiki/Big_year) is an informal competition among birders to see the most bird species in a given geographical area between January 1st and December 31st of the same calendar year. Big years can be as big or small as the participant desires: entire countries, single provinces or states, or even your own backyard.
 
 Starting in Antarctica on January 1, 2015, American birder Noah Strycker embarked on the biggest of all big years, a [global Big Year](http://www.audubon.org/magazine/january-february-2015/welcome-birding-without-borders). His goal was to bird and travel non-stop for 365 days, visiting dozens of countries and every continent, in a quest to beat the previous record of 4,341 species. In particular, he set himself a [target of 5,000 species](http://www.audubon.org/magazine/january-february-2015/welcome-birding-without-borders), which is just under half of every bird species on earth!
@@ -332,7 +324,7 @@ ggplot(country_summ, aes(x = country, y = n_species, fill = continent_name)) +
 
 Finally, I plot the trend in species seen again, but colour each segment by continent. Since Noah visited Asia three times, with visits to Africa and Oceania in between, I need to group the dataset by continuous stretches of time in each continent. My solution comes from [this StackOverflow response](http://stackoverflow.com/a/14821178/3591386).  
 
-```{r trend-cont, fig.width=600/96, fig.height=480/96}
+```{r trend-cont, img.link=T, fig.width=600/96, fig.height=480/96}
 trend <- bigyear %>% 
   group_by(date, continent_name) %>% 
   summarize(n_species = max(species_num)) %>% 

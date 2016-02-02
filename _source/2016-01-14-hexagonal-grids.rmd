@@ -18,9 +18,9 @@ In spatial analysis, we often define [grids](https://en.wikipedia.org/wiki/Grid_
 From my experience, using square cells is by far the most common method for defining grids; however, other options are possible. In fact, any [regular tesselation of the plane](https://en.wikipedia.org/wiki/Euclidean_tilings_by_convex_regular_polygons) (i.e. the tiling of a plane with contiguous regular polygons of the same type), can act as a spatial grid. Tessellation is well studied mathematically and there are just [three possible regular tesselations](https://en.wikipedia.org/wiki/Euclidean_tilings_by_convex_regular_polygons#Regular_tilings): equilateral triangles, squares, and regular hexagons. A forth option is a diamond pattern arising from merging pairs of equilateral triangles; however diamonds are not regular polygons. The following images from Wikipedia<sup id="a1">[1](#f1), [2](#f2), [3](#f3)</sup> demonstrate these tessellations:
 
 <div style="text-align: center">
-  <img src="/img/2016-01-04-hexagonal-grids/1-uniform_n11.svg" style="width: 30%;" />
-  <img src="/img/2016-01-04-hexagonal-grids/1-uniform_n5.svg" style="width: 30%;" />
-  <img src="/img/2016-01-04-hexagonal-grids/1-uniform_n1.svg" style="width: 30%;" />
+  <img src="/img/hexagonal-grids/1-uniform_n11.svg" style="width: 30%;" />
+  <img src="/img/hexagonal-grids/1-uniform_n5.svg" style="width: 30%;" />
+  <img src="/img/hexagonal-grids/1-uniform_n1.svg" style="width: 30%;" />
 </div>
 
 Recently I've seen a few instances of the use of **hexagonal grids**, especially in systematic reserve design, and I've become curious about the benefits (and drawbacks) of using them compared to traditional square grids. In this post I'll discuss the relative benefits and show how to generate different types of grids in R. 
@@ -61,6 +61,7 @@ library(rgbif)
 library(viridis)
 library(gridExtra)
 library(rasterVis)
+set.seed(1)
 ```
 
 
@@ -72,8 +73,8 @@ In the following demonstrations, I'll use Sri Lanka as an example study area. Th
 par(mar=c(2, 2, 1, 1))
 study_area <- getData("GADM", country = "LKA", level = 0, 
                       path = "data/hexagonal-grids/") %>% 
-  disaggregate() %>% 
-  geometry()
+  disaggregate %>% 
+  geometry
 study_area <- sapply(study_area@polygons, slot, "area") %>% 
   {which(. == max(.))} %>% 
   study_area[.]
@@ -248,8 +249,8 @@ Once you've created a hexagonal grid, you'll likely want to aggregate some data 
 ```{r ecuador}
 ecuador <- getData(name = "GADM", country = "ECU", level = 0, 
                    path = "data/hexagonal-grids/") %>% 
-  disaggregate() %>% 
-  geometry()
+  disaggregate %>% 
+  geometry
 # exclude gapalapos
 ecuador <- sapply(ecuador@polygons, slot, "area") %>% 
   {which(. == max(.))} %>% 

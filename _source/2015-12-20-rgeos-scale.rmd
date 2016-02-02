@@ -9,6 +9,10 @@ category: spatial
 tags: r spatial gis
 ---
 
+```{r echo = F, include = F, eval = F}
+knitr::opts_chunk(collapse = TRUE)
+```
+
 In this post, I explore the unexpected results that can arise in GEOS topology operations from problems with numerical precision or registration in coordinates. It is inspired by a discussion on [this R-sig-Geo thread](http://r-sig-geo.2731867.n2.nabble.com/gUnaryUnion-Not-Dissolving-Correctly-td7589145.html), especially the comments provided by Roger Bivand.  
 
 Many of these issues arise from challenges associated with comparing floating point numbers, a topic discussed in [R FAQ 7.31](https://cran.r-project.org/doc/FAQ/R-FAQ.html#Why-doesn_0027t-R-think-these-numbers-are-equal_003f). It is noted there that "the only numbers that can be represented exactly in R’s numeric type are integers...as a result, two floating point numbers will not reliably be equal unless they have been computed by the same algorithm". They provide the following example to illustrate this:  
@@ -55,7 +59,6 @@ These `SpatialPolygons` objects share a boundary whose coordinates are identical
 By default the `rgeos` scale factor is \\( 10^8 \\), corresponding to a precision of \\( 10^{-8} \\), and points will be treated as equal if differences in their coordinates are smaller than this precision. The `rgeos` functions `setScale()` and `getScale()` can be used to change the scale or return the current scale, respectively.  
 
 ```{r default-scale}
-# ensure scale is set to the default  
 setScale(1e8)
 getScale()
 ```
@@ -66,7 +69,6 @@ getScale()
 
 ```{r gintersects}
 gIntersects(p1, p2)
-# squares offset => no longer share an edge
 gIntersects(p1, elide(p2, shift=c(0.1, 0))) # shift > precision => FALSE
 gIntersects(p1, elide(p2, shift=c(1e-8, 0))) # shift = precision => FALSE
 gIntersects(p1, elide(p2, shift=c(1e-9, 0))) # shift < precision => TRUE
@@ -115,11 +117,9 @@ plot(gIntersection(p1, p), border='orange', add=T, lty=2, lwd=3)
 However, if the amount of overlap is small enough that the difference in coordinates is below the precision (\\( 10^{8} \\)), then the polygons are treated as having a shared boundary and the intersection returns a line.  
 
 ```{r gi-small-overlap}
-# overlap > precision => polygon
-p <- elide(p2, shift=c(-1e-8, 0))
+p <- elide(p2, shift=c(-1e-8, 0)) # overlap > precision => polygon
 class(gIntersection(p1, p)) 
-# overlap < precision => line
-p <- elide(p2, shift=c(-1e-9, 0))
+p <- elide(p2, shift=c(-1e-9, 0)) # overlap < precision => line
 class(gIntersection(p1, p)) 
 ```
 
@@ -136,11 +136,9 @@ plot(p, col='transparent', border='black', add=T)
 Again, the difference between coordinates relative to the precision determines the outcome of the intersection.  
 
 ```{r gi-small-sep}
-# separation > precision => no overlap => NULL
-p <- elide(p2, shift=c(1e-8, 0))
+p <- elide(p2, shift=c(1e-8, 0)) # separation > precision => no overlap => NULL
 class(gIntersection(p1, p)) 
-# separation < precision => shared edge => line
-p <- elide(p2, shift=c(1e-9, 0))
+p <- elide(p2, shift=c(1e-9, 0)) # separation < precision => shared edge => line
 class(gIntersection(p1, p)) 
 ```
 
@@ -150,21 +148,16 @@ Changing the scale to \\( 10^4 \\), so that precision is lower, shows how the be
 
 ```{r low-precision}
 setScale(1e4)
-
 gIntersects(p1, elide(p2, shift=c(1e-4, 0)))
 gIntersects(p1, elide(p2, shift=c(1e-5, 0)))
 
 plot(gUnion(p1, elide(p2, shift=c(1e-4, 0))), col='lightgrey', axes=T)
 plot(gUnion(p1, elide(p2, shift=c(1e-5, 0))), col='lightgrey', axes=T)
 
-# overlap > precision => polygon
-class(gIntersection(p1, elide(p2, shift=c(-1e-4, 0)))) 
-# overlap < precision => line
-class(gIntersection(p1, elide(p2, shift=c(-1e-5, 0)))) 
-# separation < precision => line
-class(gIntersection(p1, elide(p2, shift=c(1e-5, 0)))) 
-# separation > precision => NULL
-class(gIntersection(p1, elide(p2, shift=c(1e-4, 0)))) 
+class(gIntersection(p1, elide(p2, shift=c(-1e-4, 0)))) # overlap > precision => polygon
+class(gIntersection(p1, elide(p2, shift=c(-1e-5, 0)))) # overlap < precision => line
+class(gIntersection(p1, elide(p2, shift=c(1e-5, 0)))) # separation < precision => line
+class(gIntersection(p1, elide(p2, shift=c(1e-4, 0)))) # separation > precision => NULL
 ```
 
 ## Slivers  
@@ -192,10 +185,10 @@ class(gIntersection(p1, elide(p2, shift=c(-1e-5, 0))))
 
 For overlap at or above the current precision, a polygon is returned; however, if the area of this polygon is below the `polyThreshold` a sliver warning is raised.  
 ```{r sliver-warn}
-gi <- gIntersection(p1, elide(p2, shift=c(-1e-4, 0))) # sliver warning
+gi <- gIntersection(p1, elide(p2, shift=c(-1e-4, 0)))
 class(gi)
 gArea(gi)
-gi <- gIntersection(p1, elide(p2, shift=c(-1e-3, 0))) # sliver warning
+gi <- gIntersection(p1, elide(p2, shift=c(-1e-3, 0)))
 class(gi)
 gArea(gi)
 ```
@@ -203,7 +196,7 @@ gArea(gi)
 And, with sufficient overlap, the resulting polygon will have an area greater than the `polyThreshold`. In this case, the polygon will no longer be considered a sliver and no warning will be given.  
 
 ```{r sliver-none}
-gi <- gIntersection(p1, elide(p2, shift=c(-1e-2, 0))) # no warning
+gi <- gIntersection(p1, elide(p2, shift=c(-1e-2, 0)))
 class(gi)
 gArea(gi)
 ```

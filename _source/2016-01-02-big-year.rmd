@@ -78,6 +78,28 @@ head(bigyear) %>%
   kable(row.names = F)
 ```
 
+# Typos in species names
+
+Having looked at the data, I know there are a handful of problems in the species names. Some are typos and some are inconsistencies with the species names on eBird. Although, it should affect the analysis, I'd prefer a clean dataset, so I'll manually fix them here.
+
+```{r typos}
+typos <- c("Northern Island Brown Kiwi",
+           "Black-baced Swamphen",
+           "Fulvous-chested Jungle Flycatcher",
+           "Arctic/Kamchatka Leaf/Japanese Leaf Warbler",
+           "Ruby-cheeked Sunbir",
+           "Pied Shrike-Babbler")
+fixes <- c("North Island Brown Kiwi",
+           "Black-backed Swamphen",
+           "Fulvous-chested Jungle-Flycatcher",
+           "Arctic Warbler",
+           "Ruby-cheeked Sunbird",
+           "Blyth's Shrike-Babbler")
+bigyear <- data_frame(typos, fixes) %>% 
+  left_join(bigyear, ., by = c("species" = "typos")) %>% 
+  mutate(species = ifelse(is.na(fixes), species, fixes))
+```
+
 ## Fix dates  
 
 Next, I notice that the date field is of type character with just the month and day; a year isn't needed since all these dates fall within 2015 by definition. I parse this into a proper date.
@@ -131,7 +153,7 @@ unique(bigyear$country) %>%
 ```
 
 ```{r echo=F}
-#saveRDS(bigyear, '_source/data/big-year/big-year.rds')
+#saveRDS(bigyear, 'data/big-year/big-year.rds')
 #bigyear <- readRDS('data/big-year/big-year.rds')
 ```
 

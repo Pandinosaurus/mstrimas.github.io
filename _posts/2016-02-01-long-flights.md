@@ -26,9 +26,12 @@ Of course, I couldn't resist scraping these data from Wikipedia and mapping the 
 
 
 ```r
+library(knitr)
 library(sp)
 library(raster)
+library(rgdal)
 library(rgeos)
+library(rgdal)
 library(cleangeo)
 library(geosphere)
 library(plyr)
@@ -40,7 +43,7 @@ library(lubridate)
 library(ggplot2)
 library(ggmap)
 library(ggrepel)
-library(ggalt)
+library(ggalt) #devtools::install_github("hrbrmstr/ggalt")
 library(viridis)
 ```
 

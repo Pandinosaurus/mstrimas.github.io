@@ -80,7 +80,7 @@ head(bigyear) %>%
 
 # Typos in species names
 
-Having looked at the data, I know there are a handful of problems in the species names. Some are typos and some are inconsistencies with the species names on eBird. Although, it should affect the analysis, I'd prefer a clean dataset, so I'll manually fix them here.
+Having looked at the data, I know there are a handful of problems in the species names. Some are typos and some are inconsistencies with the species names on eBird. Although, it shouldn't affect the analysis, I'd prefer a clean dataset, so I'll manually fix them here.
 
 ```{r typos}
 typos <- c("Northern Island Brown Kiwi",

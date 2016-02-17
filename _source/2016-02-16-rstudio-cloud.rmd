@@ -17,7 +17,7 @@ The diversity and flexibility of AWS makes it extremely powerful; however, it al
 
 Log in to the [AWS Console](console.aws.amazon.com) and click on the EC2 icon under *Compute*. Now select the region appropriate for your location from the drop down on the top right. I've selected Oregon since I live in Vancouver.
 
-<img src="img/rstudio-cloud/region-dropdown.png" style="display: block; margin: auto;" />
+<img src="/img/rstudio-cloud/region-dropdown.png" style="display: block; margin: auto;" />
 
 ## Creating a security group
 
@@ -26,7 +26,7 @@ AWS [security groups](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-n
 1. Type: **SSH**; Source: **Anywhere**
 2. Type: **HTTP**; Source: **Anywhere**
 
-<img src="img/rstudio-cloud/security-group.png" style="display: block; margin: auto;" />
+<img src="/img/rstudio-cloud/security-group.png" style="display: block; margin: auto;" />
 
 Note that I've opened this instance to connections from any IP address. If you're concerned about security, you can change *Source* to only allow connections from certain IP ranges.
 
@@ -36,7 +36,7 @@ Instead of a password, Amazon EC2 instances require a [key pair](https://docs.aw
 
 To create a key pair from the EC2 dashboard, select *Key Pairs* from the left panel, then click the *Create Key Pair* button. Enter a name for your key pair, then click *Create*.
 
-<img src="img/rstudio-cloud/key-pair.png" style="display: block; margin: auto;" />
+<img src="/img/rstudio-cloud/key-pair.png" style="display: block; margin: auto;" />
 
 Your browser will now download a file with a `.pem` extension. This is your private key and should be stored in a secure location. **Important: If you loose your private key you won't be able to access your EC2 instance; if someone else gets ahold of your private key they will be able to gain access to your instance. Be careful with it!**
 
@@ -50,19 +50,19 @@ First, you'll now be presented with a list of **Amazon Machine Images (AMIs)**. 
 
 [Louis Aslett](http://www.louisaslett.com/RStudio_AMI/) kindly maintains an RStudio AMI that I suggest using. To access it, click on *Community AMIs*, then search for "rstudio aslett". You'll see several options, pick the one with the most current RStudio and R versions, for me these are `0.99.491` and `3.2.3` respectively. Click the *Select* button next to this AMI.
 
-<img src="img/rstudio-cloud/ami.png" style="display: block; margin: auto;" />
+<img src="/img/rstudio-cloud/ami.png" style="display: block; margin: auto;" />
 
 ### Step 2: Instance Type
 
 Now you'll be prompted to select an instance type, this specifies the characteristics (and price) of the virtual machine you'll be creating. The sky's the limit here, you could create a machine with 40 cores and 160 GB of RAM, but we'll stick with the default Free Tier (*t2.micro*) here. This a very basic machine that is good for simple tasks. And, most importantly, it doesn't cost a penny! Select the *Free Tier*, then click the *Next: Configure Instance Details* button.
 
-<img src="img/rstudio-cloud/instance-type.png" style="display: block; margin: auto;" />
+<img src="/img/rstudio-cloud/instance-type.png" style="display: block; margin: auto;" />
 
 ### Step 3: Configure Instance Details
 
 On the next page, you're asked to configure the instance. Leave the top portion as is, but scroll down to the *Advanced* section and click on it to expend it. You'll now see a text box titled *User Data*, which allows you to enter a shell script that will be run as the instance is created. By entering commands here to install desired software (or R packages) you can reduce the amount of configuration you'll have to do after the instance is created.
 
-<img src="img/rstudio-cloud/shell-script.png" style="display: block; margin: auto;" />
+<img src="/img/rstudio-cloud/shell-script.png" style="display: block; margin: auto;" />
 
 The following script installs **AWS Command-line Interface**, configures **git**, installs [**littler**](dirk.eddelbuettel.com/code/littler.html) (a better command line interface for R),  and installs a variety of useful **R packages**, some from the Hadleyverse and some for spatial analysis and mapping. This could also be done interactively *after* the instance is already deployed; however, I like to encode as much of the setup as possible into a script since it allows me to quickly start up new instances with the same configuration.
 
@@ -108,15 +108,15 @@ On this page you can give your instance a name (e.g. rstudio). Then click the *N
 
 Here's where you tell AWS how you want your instance to interact with the outside world. Select the SSH and HTTP security group you created earlier to make your instance accessible remotely.
 
-<img src="img/rstudio-cloud/sg-select.png" style="display: block; margin: auto;" />
+<img src="/img/rstudio-cloud/sg-select.png" style="display: block; margin: auto;" />
 
 Now click the *Next: Review and Launch* button, then the *Launch* button on the next page to launch the instance. Finally, before the instance launches, you'll be prompted to select a key pair. Choose the key pair you created earlier.
 
-<img src="img/rstudio-cloud/kp-select.png" style="display: block; margin: auto;" />
+<img src="/img/rstudio-cloud/kp-select.png" style="display: block; margin: auto;" />
 
 AWS will now boot up your instance, which may take several minutes. Return to the *Instances* page on the *EC2 Console* for a list of running instances. The EC2 instance you just created should be listed here. Clicking on the instance will bring up further information, including the **Public DNS of your instance**, which you'll need in the next step.
 
-<img src="img/rstudio-cloud/instance-ip.png" style="display: block; margin: auto;" />
+<img src="/img/rstudio-cloud/instance-ip.png" style="display: block; margin: auto;" />
 
 # Connecting to an EC2 Instance via SSH
 
@@ -161,8 +161,8 @@ sudo passwd rstudio
 
 We've now done all the legwork and it's time for the fun stuff: connecting to RStudio via the browser. Just open your favourite web browswer and enter the public DNS of your instance, which is available via the *Instances* page in the *EC2 Console*. Then enter the `rstudio` as the username, and the password you just set.
 
-<img src="img/rstudio-cloud/sign-in.png" style="display: block; margin: auto;" />
+<img src="/img/rstudio-cloud/sign-in.png" style="display: block; margin: auto;" />
 
 Ta-Dah! You now have access to RStudio running on the EC2 instance through your browser. Play around with it and you'll see it functions almost identically to your typical desktop version of RStudio.
 
-<img src="img/rstudio-cloud/rstudio.png" style="display: block; margin: auto;" />
+<img src="/img/rstudio-cloud/rstudio.png" style="display: block; margin: auto;" />

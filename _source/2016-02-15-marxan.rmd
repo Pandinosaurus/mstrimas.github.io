@@ -1,0 +1,35 @@
+---
+layout: post
+title: Emulating Marxan in R
+published: true
+excerpt: >
+  Marxan is the most widely used software for the systematic design of protected
+  areas. In this post, I dealve into the details of Marxan and emulate it in R.
+category: r
+tags: r marxan conservation
+---
+
+```{r echo = F, include = F, eval = F}
+setwd("_source/")
+```
+
+```{r packages}
+library(sp)
+library(marxan)
+```
+
+More than an 1/8 of Earth's land area is within some form of [protected area](https://en.wikipedia.org/wiki/Protected_area); however, protected area (PA) networks often do a poor job of representing the biodiversity that they ostensibly protect. In large part, this is because new parks and PAs have historically haven't been placed in the optimal locations for conservation. Often they are placed opportunistically, where the land is cheap and unlikely to experience land use change anyway. For many of the most famous parks in North America (e.g. Yosemite or Banff), they may have been chosen more for scenic and recreation value than conservation potential. Or, more subtly, a network of PAs may not complement each other, with some taxa or habitats overrepresented and others underrepresented.
+
+Enter the field of Systematic Conservation Planning, which offers a set of tools and techniques for systematically identifying the optimal location of new PAs in a way that maximizes conservation benefit and minimizes socio-economic cost. These tools have changed the way conservation decisions are made, and how and where conservation resources are allocated. [Marxan](http://uq.edu.au/marxan/) is the most widely used tool for the systematic design on PAs. It's used globally in both the terrestrial and marine realms, for projects large and small.
+
+A detailed understanding of how Marxan works isn't required to use the software; however, I hate a black box so, as I started using it, I began digging into the documentation and source code to see exactly what it was doing. This led me to emulating Marxan within R as a means of checking that I was understanding everything correctly. In addition, this R Marxan emulator offers a nice platform for prototyping changes to Marxan without having to deal with the C source code. Of course, Marxan is highly optimized in C and very feature rich, and this R emulator could never be used in a real planning exercise. But, I present it here in the hopes that it may be instructive.
+
+# Background
+
+## Marxan
+
+A Marxan excercise starts by dividing the study region into planning units (typically square or hexagonal cells) and, for each planning unit, calculating the cost and the distribution of features of conservation interest. The **cost** might be the acquisition cost of the land, the costs of management, the opportunity cost of foregone commercial activities (e.g. from logging or oil palm development), or simply the area. The **conservation features** are typically species (e.g. Clouded Leopard) or habitats (e.g. mangroves or cloud forest). Then, for each conservation feature, representation targets must be set, such as 20% of the historical extent of cloud forest or \\(  1000 km^2 \\) of Clouded Leopard habitat.
+
+Given these inputs, Marxan finds the set of planning units that meets the representation targets for the lowest cost. This 
+
+## Simulated Annealing

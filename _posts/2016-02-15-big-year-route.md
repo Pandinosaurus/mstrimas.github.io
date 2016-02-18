@@ -10,17 +10,18 @@ category: spatial
 tags: r ggplot birding
 ---
 
-```{r include = F, eval = F}
-setwd("_source/")
-```
+
 
 In 2015, American birder [Noah Strycker](http://noahstrycker.com/) completed a [global big year](https://www.audubon.org/features/birding-without-borders), seeing 6,042 different bird species over the course of the year. In [a previous post](http://strimas.com/r/big-year/), I used his big year [species list](https://www.audubon.org/news/the-species-list) to make some visualizations of Noah's impressive accomplishment. In that post I noted that it would be nice to have access to the full list of all Noah's sightings, not just the list of unique species seen. Evidently Noah saw my comments and was kind enough to share all his [eBird](http://ebird.org/) checklists for the entire year!
 
 I plan on looking at different aspects of this dataset over the course of a few blog posts. First, in this post, I'll try mapping his route, which will require spatially clustering his sightings.
 
+ **If you don't care about R, [skip to the final map](#final-map).**
+
 # Required Packages
 
-```{r packages}
+
+```r
 library(knitr)
 library(magrittr)
 library(readr)
@@ -40,7 +41,8 @@ library(dbscan)
 
 Noah shared his sightings with me as an Excel file, which I immediately exported to CSV for import into R. The variable names as exported from eBird are long and full of spaces, so I skip the header row and assign my own names
 
-```{r import}
+
+```r
 var_names <- c("sub_id", "common_name", "species", "order", "count", 
                "adm_unit", "country", "site", "lat", "lon",
                "date", "time", "protocol", "duration", "all_obs",
@@ -49,10 +51,12 @@ sightings <- read_csv("data/big-year-route/strycker-all-sightings.csv",
                       col_types = cols(count = col_character()),
                       col_names = var_names, skip = 1)
 dim(sightings)
+#> [1] 36658    19
 n_distinct(sightings$species)
+#> [1] 6220
 ```
 
-That's `r format(nrow(sightings), big.mark = ",")` records for 2015, where each row corresponds to the sighting of a given species within a particular checklist. Also, note that there are `r format(n_distinct(sightings$species), big.mark = ",")` unique species in this dataset, yet Noah saw 6,042, so there's something amiss here.
+That's 36,658 records for 2015, where each row corresponds to the sighting of a given species within a particular checklist. Also, note that there are 6,220 unique species in this dataset, yet Noah saw 6,042, so there's something amiss here.
 
 ## Data Cleaning
 
@@ -65,7 +69,8 @@ The next step, as always, is to get the data into a nice tidy form. The issues t
 5.  For many species, there are multiple recognizable forms or subspecies. The subspecies name is typically given in brackets following the species name, e.g. "Royal Albatross (Northern)". Since these subspecies don't count in the big year tally, I remove the subspecies name.
 6.  There is a Torrent Duck record from Chile on February 21, which is likely incorrect since Noah was in Peru at this time.
 
-```{r clean-up}
+
+```r
 sightings$count[sightings$count == "X"] <- NA
 sightings$common_name[sightings$common_name == "Taiwan Bamboo-Partidge"] <- 
   "Taiwan Bamboo-Partridge"
@@ -86,30 +91,33 @@ sightings <- sightings %>%
   }
 filter(sightings, !not_species, !undescribed) %>% 
   {n_distinct(.$name)}
+#> [1] 6042
 ```
 
 We're now back down to 6,042 as expected. I also check to ensure all birds in this list appear in the big year list ([see previous post](http://strimas.com/r/big-year/)), and vice versa.
 
-```{r big-year-comp}
+
+```r
 bigyear <- readRDS("data/big-year/big-year.rds")
 filter(sightings, !name %in% bigyear$species, !not_species, !undescribed) %>% 
   nrow
+#> [1] 0
 filter(sightings, !not_species, !undescribed) %>% 
   {filter(bigyear, !species %in% .$name)} %>% 
   nrow
+#> [1] 0
 ```
 
-```{r eval=F, include=F}
-saveRDS(sightings, "data/big-year-route/sightings.rds")
-```
+
 
 Everything looks good!
 
 ## Summarizing by Site
 
-What I'm really interested in in this post in not individuals sightings, but the various sites Noah visited. At each birding site Noah typically saw a variety of species, and many sites were visited more than once. So, I collapse this data frame of sightings such that each row corresponds to a particular site visited at a particular time. By using the new `nest()` function from the `tidyr` package, I collapse the `sightings` data frame while retaining the full lists of species seen as nested data frames. I only recently discovered that, in addition to atomic vectors, data frame columns can be lists of objects such as data frames.
+What I'm really interested in in this post is not individuals sightings, but the various sites Noah visited. At each birding site Noah typically saw a variety of species, and many sites were visited more than once. So, I collapse this data frame of sightings such that each row corresponds to a particular site visited at a particular time. By using the new `nest()` function from the `tidyr` package, I collapse the `sightings` data frame while retaining the full lists of species seen as nested data frames. I only recently discovered that, in addition to atomic vectors, data frame columns can be lists of objects such as data frames.
 
-```{r sightings-map}
+
+```r
 sites <- sightings %>% 
   select(site, datetime, lon, lat, species = name, not_species, undescribed) %>% 
   group_by(site, datetime, lon, lat) %>% 
@@ -118,11 +126,13 @@ sites <- sightings %>%
   ungroup %>% 
   arrange(datetime)
 nrow(sites)
+#> [1] 2136
 ```
 
 I'm left with about 2,100 unique sites, which is much more manageable than over 36,000 sightings. First, I'll just map all these sites. I use the awesome function `coord_proj()` from `ggalt` to project the spatial data to the [Winkel-Tripel projection](https://en.wikipedia.org/wiki/Winkel_tripel_projection) on the fly.
 
-```{r}
+
+```r
 world <- map_data("world")
 # account for lakes, which should not be filled
 world <- mutate(world, water = grepl("Lake|Sea", region))
@@ -149,6 +159,8 @@ ggplot(sites) +
         legend.title = element_text(face = "bold", lineheight = 0.1))
 ```
 
+<a href="/figures//big-year-route_unnamed-chunk-3-1.png"><img src="/figures//big-year-route_unnamed-chunk-3-1.png" title="plot of chunk unnamed-chunk-3" alt="plot of chunk unnamed-chunk-3" style="display: block; margin: auto;" /></a>
+
 Looks alright, but there's still over 2,000 sites here. To plot Noah's route over the course of the year, I'll need to cluster these sites such that nearby points are grouped together into a single location.
 
 # Spatial Clustering
@@ -159,7 +171,8 @@ In the context of statistics and machine learning, [clustering](https://en.wikip
 
 The first step for a typical clustering exercise is to calculate a matrix of pairwise distances between all points. Since the points are spread out across the globe, I use the `geosphere` package, which provides spherical trigonometry functions for working with locations in latitude and longitude. In particular, the `distm()` function calculates a distance matrix using the [Haversine formula](https://en.wikipedia.org/wiki/Haversine_formula), which approximates the Earth as a sphere. The results are in meters, so I convert to km by dividing by 1,000.
 
-```{r distance-matrix}
+
+```r
 dist_matrix <- select(sites, lon, lat) %>% 
   distm %>% 
   `/`(1000) %>% 
@@ -172,15 +185,19 @@ dist_matrix <- select(sites, lon, lat) %>%
 
 In R, hierarchical clustering is implemented with the `hclust()` function, which builds the tree, and `cutree()`, which cuts the tree to produce distinct clusters. Cutting can either be done to produce a specified number of groups, or for a given distance between groups. To demonstrate their use, I'll show a simple example from the help for `hclust()` that clusters 15 US states based on arrest data. First, I build and plot the hierarchy. 
 
-```{r hclust-ex}
+
+```r
 hc <- hclust(dist(USArrests[1:15,]), "average")
 plot(hc, main = NULL, ann=FALSE)
 box()
 ```
 
+<img src="/figures//big-year-route_hclust-ex-1.svg" title="plot of chunk hclust-ex" alt="plot of chunk hclust-ex" style="display: block; margin: auto;" />
+
 Now I use `cutree()` to cluster the states, first into 3 groups, then according to a distance threshold. Note that "distance" here is not physical distance, rather it's the Euclidean distance in the 4-dimensional space defined by the four variables in the dataset.
 
-```{r cutree-ex}
+
+```r
 cut_number <- cutree(hc, k = 3)
 cut_distance <- cutree(hc, h = 50)
 data_frame(state = names(cut_number),
@@ -190,29 +207,38 @@ data_frame(state = names(cut_number),
   kable
 ```
 
-Now I apply this approach to cluster the sites in the eBird sightings dataset. I've somewhat arbitrarily chosen a distance threshold of 250km for defining clusters. I've chosen such a large distance threshold because I'm dealing with a global dataset and want clustets to appear distinct at a very small scale.
 
-```{r hclust}
+
+|state       | cluster_number| cluster_distance|
+|:-----------|--------------:|----------------:|
+|Alabama     |              1|                1|
+|Alaska      |              1|                1|
+|Arizona     |              1|                1|
+|California  |              1|                1|
+|Delaware    |              1|                1|
+|Illinois    |              1|                1|
+|Arkansas    |              1|                2|
+|Colorado    |              1|                2|
+|Georgia     |              1|                2|
+|Connecticut |              2|                3|
+|Idaho       |              2|                3|
+|Indiana     |              2|                3|
+|Florida     |              3|                4|
+|Hawaii      |              2|                5|
+|Iowa        |              2|                5|
+
+Now I apply this approach to cluster the sites in the eBird sightings dataset. I've somewhat arbitrarily chosen a distance threshold of 250km for defining clusters. I've chosen such a large distance threshold because I'm dealing with a global dataset and want clusters to appear distinct at a very small scale.
+
+
+```r
 hc <- hclust(dist_matrix)
 clust <- cutree(hc, h = 250)
 sites$cluster_hc <- clust
 n_distinct(clust)
+#> [1] 128
 ```
 
-So, setting mean distance between clusters to 250km yields `r n_distinct(clust)` clusters. Cluster membership can be plotted on a map.
-
-```{r hclust-map}
-ggplot(sites) +
-  geom_polygon(data = filter(world, !water), aes(long, lat, group = group), 
-               color = "grey90", size = 0.05, fill = "grey50") +
-  geom_point(aes(lon, lat, color = cluster_hc), size = 1) +
-  scale_color_viridis(option = "D") +
-  guides(color = FALSE) +
-  coord_proj("+proj=wintri") +
-  theme(text = element_text(family = "Helvetica"),
-        plot.margin = unit(c(0, 0, 0, 0), "lines"),
-        panel.border = element_rect(color = "black", fill = NA))
-```
+So, setting mean distance between clusters to 250km yields 128 clusters.
 
 ## DBSCAN
 
@@ -220,34 +246,24 @@ ggplot(sites) +
 
 DBSCAN requires two parameters that determine what constitutes a cluster. In particular, clusters are groups of at least \\( minPts \\) points that are all connected to each other through links of distance \\( \epsilon \\) or less. This algorithm is implemented within the `dbscan` package.
 
-```{r dbscan}
+
+```r
 db <- dbscan(dist_matrix, eps = 250, minPts = 2)
 db$cluster[db$cluster == 0] <- seq(max(db$cluster) + 1,
                                    max(db$cluster) + sum(db$cluster == 0))
 sites$cluster_db <- db$cluster
 n_distinct(db$cluster)
+#> [1] 74
 ```
 
-Again, I map cluster membership.
-
-```{r}
-ggplot(sites) +
-  geom_polygon(data = filter(world, !water), aes(long, lat, group = group), 
-               color = "grey90", size = 0.05, fill = "grey50") +
-  geom_point(aes(lon, lat, color = cluster_db), size = 1) +
-  scale_color_viridis(option = "D") +
-  guides(color = FALSE) +
-  coord_proj("+proj=wintri") +
-  theme(text = element_text(family = "Helvetica"),
-        plot.margin = unit(c(0, 0, 0, 0), "lines"),
-        panel.border = element_rect(color = "black", fill = NA))
-```
+This approach leads to 74. I prefer the DBSCAN method so I'll use these clusters in what follows.
 
 ## Accounting for Time
 
 This takes care of the spatial dimensions, but there's also a temporal dimension to these data. Each record has a corresponding date and time, and I want to preserve the temporal ordering of the data. In some cases, Noah backtracked resulting in the visit to a given cluster being broken up by visits to other clusters. To address this, I split clusters into sub-clusters to that each sub-cluster is a well-defined temporal unit.
 
-```{r temporal-fix}
+
+```r
 sites <- sites %>% 
   arrange(datetime, desc(cluster_db)) %>% 
   mutate(cluster = cumsum(c(1L, diff(cluster_db) != 0)))
@@ -255,9 +271,10 @@ sites <- sites %>%
 
 # Aggregating Clusters
 
-Once clusters have been identified, the next step is to aggregate all the points within the cluster to a single point; it is this point that I'll eventually plot. I take the simple mean of the coordinates to represent all the points within the cluster. This is a classic [split-apply-combine](http://stat545-ubc.github.io/block023_dplyr-do.html) problem, that I solve with `dplyr::do()`. Note the use of list-columns again.
+Once clusters have been identified, the next step is to aggregate all the points within the cluster to a single point; it is this point that I'll eventually plot. I take the mean of the coordinates to represent all the points within the cluster. This is a classic [split-apply-combine](http://stat545-ubc.github.io/block023_dplyr-do.html) problem, that I solve with `dplyr::do()`. Note the use of list-columns again.
 
-```{r}
+
+```r
 distinct_species <- function(x, countable = FALSE) {
   x <- bind_rows(x)
   if (countable) {
@@ -296,7 +313,8 @@ clusters <- group_by(sites, cluster) %>%
 
 Finally, to map Noah's route, I'll use great circle segments between sequential pairs of clusters. 
 
-```{r gc}
+
+```r
 gc <- transmute(clusters,
                 lon_from = lon, lat_from = lat,
                 lon_to = lead(lon), lat_to = lead(lat)) %>% 
@@ -312,9 +330,10 @@ gc <- clusters %>%
   left_join(gc, ., by = "id")
 ```
 
-I also calcuate the total distance travelled between all sites (i.e. not just clusters) along great circle routes.
+I also calculate the total distance traveled between all sites (i.e. not just clusters) along great circle routes.
 
-```{r total-distance}
+
+```r
 total_dist = transmute(sites,
           lon_from = lon, lat_from = lat,
           lon_to = lead(lon), lat_to = lead(lat)) %>% 
@@ -323,15 +342,16 @@ total_dist = transmute(sites,
   {sum(.$d) / 1000}
 ```
 
-So Noah travelled at least `r format(total_dist, big.mark = ",")`km, enough to travel around the planet `r round(total_dist / 6371, 1)` times!
+So Noah traveled at least 176,772km, enough to travel around the planet 27.7 times!
 
 # Final Map
 
-```{r final-map}
+
+```r
 ggplot(clusters) +
   geom_polygon(data = filter(world, !water), aes(long, lat, group = group), 
                color = "white", size = 0.05, fill = "grey60") +
-  geom_point(aes(lon, lat, size = species_day), color = "#fa6900", alpha = 0.75) +
+  geom_point(aes(lon, lat, size = species_day), color = "#fd9900") +
   geom_path(data = gc, 
             aes(long, lat, group = group, color = bigyear), size = 0.75) +
   scale_color_viridis("Big Year Tally", option = "D",
@@ -348,23 +368,21 @@ ggplot(clusters) +
                            barheight = unit(8, "lines")),
     size = guide_legend()) +
   coord_proj("+proj=wintri", xlim = c(-180, 180), ylim = c(-80, 80)) +
-  labs(x = "Longitude", y = "Latitude") +
-  annotate("text", x = 0, y = 75, 
-            label = "Noah Strycker's Big Year",
-            color = "white", family = "Times", size = 7) +
-  annotate("text", x = 0, y = -75, 
-           label = "365 days • 176,000 km • 6,042 species",
-           color = "black", family = "Times", size = 4) +
+  labs(x = "Longitude", y = "Latitude", title = "Noah Strycker's Big Year") +
+  annotate("text", x = 0, y = -80, 
+           label = "365 days • 176,772 km • 6,042 species",
+           color = "black", family = "Helvetica Neue Light", size = 4.5) +
   scale_x_continuous(breaks = seq(-180, 180, 45)) +
   scale_y_continuous(breaks = seq(-80, 80, 20)) +
-  theme(text = element_text(family = "Helvetica"),
+  theme(text = element_text(family = "Helvetica Neue Light"),
+        plot.title = element_text(size = 20),
         plot.margin = unit(c(0.25, 0, 0, 0), "lines"),
-        panel.background = element_rect(fill = "white"),
         panel.border = element_rect(color = "black", size = 0.5, fill = NA),
-        panel.grid.major = element_line(color = "grey50", size = 0.1),
         # legend
         legend.position = c(0.12, 0.5),
+        legend.key = element_blank(),
         #legend.direction = "horizontal",
         legend.background = element_rect(color = "grey50", size = 0.5))
 ```
 
+<a href="/figures//big-year-route_final-map-1.png"><img src="/figures//big-year-route_final-map-1.png" title="plot of chunk final-map" alt="plot of chunk final-map" style="display: block; margin: auto;" /></a>

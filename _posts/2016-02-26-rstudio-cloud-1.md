@@ -1,6 +1,6 @@
 ---
 layout: post
-title: RStudio in the Cloud I: Amazon Web Services
+title: "RStudio in the Cloud I: Amazon Web Services"
 published: true
 excerpt: >
   How to quickly get a cloud-based, GIS-ready instance of RStudio Server running on Amazon

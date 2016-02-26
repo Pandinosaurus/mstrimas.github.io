@@ -15,7 +15,7 @@ The diversity and flexibility of AWS makes it extremely powerful; however, it al
 
 This is part I in a series of posts about using RStudio on AWS.
 
-# Motivation (aka this is this cool/useful)
+# Motivation (aka why this is cool/useful)
 
 At the end of this tutorial, you'll have RStudio running in the cloud on AWS and accessible via your web browswer. If the utility of this isn't immediately clear to you, I'll offer three reasons why I think this is cool:
 

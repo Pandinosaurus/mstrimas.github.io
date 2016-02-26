@@ -1,0 +1,34 @@
+---
+layout: post
+title: RStudio in the Cloud II: Syncing Code & Data with AWS
+published: true
+excerpt: >
+  Tutorial on transferring and syncing data between Amazon Web Services and your
+  local machine.
+category: r
+tags: r cloud
+---
+
+This is part II in a series of posts about using RStudio on Amazon Web Services (AWS). In [part I](http://strimas.com/r/rstudio-cloud/), I outlined how to quickly get RStudio Server running on an AWS EC2 instance. This gives you access to RStudio via a web browser with as much (or as little) computing power you need for any given task.
+
+Once you have RStudio up and running, you'll likely want to transfer or sync some data and/or code between the remote AWS instance and your local machine. This tutorial covers this syncing process.
+
+# Syncing Code with AWS
+
+There isn't much to say here other than: use **git** and (**GitHub**)[https://github.com/]. These tools are specifically designed for version control and colloborative coding. Furthermore, (RStudio)[https://www.rstudio.com/] has great intergration with git and GitHub. If you're new to these tools, there are many great tutorials online. [Jenny Bryan's notes](http://stat545-ubc.github.io/git00_index.html) for STAT545 at UBC are an excellent place to start.
+
+# Syncing Data with AWS
+
+There are a variety of approaches for syncing or transferring data between an EC2 instance and a local computer. I'll cover three options here: using [Secure Copy](https://en.wikipedia.org/wiki/Secure_copy) (SCP) to copy files over SSH, syncing files with [Dropbox](https://www.dropbox.com/), and using Amazon S3 and AWS Command Line Interface (CLI). Each has it's own benefits and drawbacks.
+
+## SCP
+
+## Dropbox
+
+## S3
+
+Once you have an RStudio project that you've pushed to GitHub, point your browser to your EC2 instance and log on to RStudio Server ([covered in part I](http://strimas.com/r/rstudio-cloud/)).
+
+```bash
+ssh -i ~/aws.pem ubuntu@ec2-52-36-52-70.us-west-2.compute.amazonaws.com
+```

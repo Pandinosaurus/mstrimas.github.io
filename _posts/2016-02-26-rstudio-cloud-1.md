@@ -76,7 +76,14 @@ On the next page, you're asked to configure the instance. Leave the top portion 
 
 The following script installs **AWS Command-line Interface**, configures **git**, installs [**littler**](dirk.eddelbuettel.com/code/littler.html) (a better command line interface for R),  and installs a variety of useful **R packages**, some from the Hadleyverse and some for spatial analysis and mapping. This could also be done interactively *after* the instance is already deployed; however, I like to encode as much of the setup as possible into a script since it allows me to quickly start up new instances with the same configuration.
 
-You should modify this script to include the name and email address you want to use for git. You can also change the list of packages to include those most useful to use. Once you've customized this script, I suggest saving it somewhere for later use. To use this script, just paste it into the *User Data* text box.
+Before running this script, you should make the following modifications:
+
+- Enter your own name and email address to use for git
+- Modify the list of packages to include those most useful to you
+- Modify ther version number of RStudio Server to reference the most recent version,
+available via the [RStudio website](https://www.rstudio.com/products/rstudio/download-server/)
+
+Once you've customized this script, I suggest saving it somewhere for later use. To use this script, just paste it into the *User Data* text box.
 
 ```bash
 #!/bin/bash
@@ -84,6 +91,14 @@ apt-get update -y
 
 # Install AWS Command Line Utilities
 apt-get install -y awscli
+
+# Update RStudio Server
+# Get most current version from https://www.rstudio.com/products/rstudio/download-server/
+apt-get -y install gdebi-core
+wget https://download2.rstudio.org/rstudio-server-0.99.891-amd64.deb
+gdebi -n rstudio-server-0.99.891-amd64.deb
+rm -f rstudio-server-0.99.891-amd64.deb
+
 
 # Configure git for RStudio
 sudo -H -u rstudio bash -c "git config --global user.name 'Your Name'" # CHANGE

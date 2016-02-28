@@ -15,9 +15,10 @@ disqus:               mstrimas
 
 # Jekyll build settings
 permalink:            /:categories/:title/
-markdown:             redcarpet #kramdown
-redcarpet:
-  extensions: ["no_intra_emphasis", "fenced_code_blocks", "autolink", "tables", "with_toc_data"]
+markdown:             kramdown
+kramdown:
+  auto_ids: true
+  input: GFM
 highlighter:          rouge
 excerpt_separator:    "<!-- more -->"
 timezone:             "America/Vancouver"

@@ -1,27 +1,80 @@
 ---
 layout: post
-title: RStudio in the Cloud II: Syncing Code & Data with AWS
+title: "RStudio in the Cloud II: Syncing Code & Data with AWS"
 published: true
 excerpt: >
-  Tutorial on transferring and syncing data between Amazon Web Services and your
-  local machine.
+  Tutorial on transferring and syncing data between Amazon Web Services (AWS) and your
+  local machine, with a focus on R and RStudio.
 category: r
 tags: r cloud
 ---
 
-This is part II in a series of posts about using RStudio on Amazon Web Services (AWS). In [part I](http://strimas.com/r/rstudio-cloud/), I outlined how to quickly get RStudio Server running on an AWS EC2 instance. This gives you access to RStudio via a web browser with as much (or as little) computing power you need for any given task.
+This is part II in a series of posts about using RStudio on Amazon Web Services (AWS). In [part I](http://strimas.com/r/rstudio-cloud/), I outlined how to quickly get RStudio Server running on an AWS EC2 instance. This gives you access to RStudio via a web browser with as much (or as little) computing power as you need for any given task.
 
 Once you have RStudio up and running, you'll likely want to transfer or sync some data and/or code between the remote AWS instance and your local machine. This tutorial covers this syncing process.
 
-# Syncing Code with AWS
+# Syncing code with AWS
 
-There isn't much to say here other than: use **git** and (**GitHub**)[https://github.com/]. These tools are specifically designed for version control and colloborative coding. Furthermore, (RStudio)[https://www.rstudio.com/] has great intergration with git and GitHub. If you're new to these tools, there are many great tutorials online. [Jenny Bryan's notes](http://stat545-ubc.github.io/git00_index.html) for STAT545 at UBC are an excellent place to start.
+If, like me, you have a persistent RStudio instance on AWS that you use to develop code, you'll want to use **git** and (**GitHub**)[https://github.com/]. These tools are specifically designed for version control, collaborative coding, and keeping code in sync between different machines (e.g. your local machine and AWS). Furthermore, (RStudio)[https://www.rstudio.com/] has great integration with git and GitHub. If you're new to these tools, there are many great tutorials online. [Jenny Bryan's notes](http://stat545-ubc.github.io/git00_index.html) for STAT545 at UBC are an excellent place to start.
+
+On the other hand, if you're just creating a temporary EC2 instance to run some code, it may be easier to just transfer that code along with the data to AWS. For this use case, use one of the approaches described below.
 
 # Syncing Data with AWS
 
-There are a variety of approaches for syncing or transferring data between an EC2 instance and a local computer. I'll cover three options here: using [Secure Copy](https://en.wikipedia.org/wiki/Secure_copy) (SCP) to copy files over SSH, syncing files with [Dropbox](https://www.dropbox.com/), and using Amazon S3 and AWS Command Line Interface (CLI). Each has it's own benefits and drawbacks.
+There are a variety of approaches for syncing or transferring data between an EC2 instance and a local computer. I'll cover three options here: using [Secure Copy](https://en.wikipedia.org/wiki/Secure_copy) (SCP) to copy files over SSH, syncing files with [Dropbox](https://www.dropbox.com/), and using Amazon S3 and the AWS Command Line Interface (CLI). Each has it's own benefits and drawbacks.
+
+## Example
+
+I've created a [simple RStudio project](https://github.com/mstrimas/aws-example) for demonstration purposes. It contains a data set taken from the UN [Food and Agriculture Organization's](http://www.fao.org/home/en/) [Forest Resources Assessment](http://www.fao.org/forest-resources-assessment/explore-data/en/). [Download](https://github.com/mstrimas/aws-example/archive/master.zip) and unzip the project before you continue.
+
+The `forest-loss.r` script reads in the data, processes it, and produces a figures, which is saved as a PNG file.
 
 ## SCP
+
+[Secure Copy](http://www.hypexr.org/linux_scp_help.php) (SCP) is a means of transferring files over SSH between a local and remote host. This is a fairly simple process requiring no extra tools; however, it's a one time transfer, there's no syncing of files. This method is most useful for moving files (e.g. the output of a script you've just run) from AWS back to your local machine. 
+
+### Copying to AWS
+
+There is one important catch to SCP: you can only SSH into your EC2 instance as user `ubuntu`, but you can only login to RStudio as user `rstudio`. This means you can only SCP files to the home directory of `ubuntu`, which is inaccessible via RStudio. So, there's an extra step required to move files between home directories on the EC2 instance.
+
+To transfer the example project folder from your local machine to an EC2 instance, open a terminal window on your local machine, navigate to the directory containing the project directory, and run the following command:
+
+```bash
+scp -i ~/aws.pem -r aws-example-master ubuntu@ec2-52-36-52-70.us-west-2.compute.amazonaws.com:~
+```
+
+Let's break this down:
+
+- `-i ~/aws.pem` points SCP to your private key [required for logging on to the EC2 instance](http://strimas.com/r/rstudio-cloud-1/). Make sure you put in the correct path to your `.pem` file.
+- `-r` tells SCP to copy recursively. This is only needed when copying directories and can be omitted if copying a single file.
+- ` aws-example-master` this is the file or folder you want to copy.
+- `ubuntu@...` specifies the user and host name for the remote instance. Make sure you substitute the public DNS of your instance, which is available via the *Instances* page in the *EC2 Console*.
+- Finally, the portion after the colon specifies where on the remote host you want to put the file. Here I've just used `~` to put the project directory in the home directory.
+
+Next, you'll need to log on to the EC2 instance and move the file from the `ubuntu` home directory to the `rstudio` home directory to make it accessible from RStudio.
+
+```bash
+ssh -i ~/aws.pem ubuntu@ec2-52-36-52-70.us-west-2.compute.amazonaws.com
+sudo mv aws-example-master/ ~rstudio
+sudo chown rstudio ~rstudio/aws-example-master
+```
+
+The last command changes ownership of the directory from `ubuntu` to `rstudio`. 
+
+Now, log into your cloud-based RStudio using a web browser and open the RStudio project you just copied over. Within the `R/` directory there is a script named `forest-loss.r`, open and run the script. It will produce a single PNG file. The next step is to get this PNG file back onto our local machines.
+
+### Copying from AWS
+
+Copying files from AWS is much simpler since you don't have to deal with the extra steps of moving the files between home directories. Just run the following command at the shell prompt on your local machine:
+
+```bash
+scp -i ~/aws.pem ubuntu@ec2-52-36-52-70.us-west-2.compute.amazonaws.com:~rstudio/aws-example-master/forest-change.png .
+```
+
+Most of this command is identical to what we did previously when copying to AWS, with the following differences:
+
+- `~rstudio/aws-example-master/forest-change.png` specifies that path to the file you want to copy on the remote host. Note that `~rstudio` refers to the home directory of user `rstudio` and is required because we're SCPing as user `ubuntu`.
+- The `.` tells SCP to just put the file in the current directory. You could also specify the path to a directory on your local machine to put the file there instead. 
 
 ## Dropbox
 

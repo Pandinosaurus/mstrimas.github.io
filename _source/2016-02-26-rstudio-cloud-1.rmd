@@ -25,7 +25,7 @@ At the end of this tutorial, you'll have RStudio running in the cloud on AWS and
 
 # Create IAM user
 
-The Identity & Access Management (IAM) service is used to manage users within an AWS account. Different permissions can be granted to different users for different resources. You can log on to AWS using the email address and password you provided when you signed up, which will give you full root access to your account; however, for security reasons, Amazon suggests creating a user with admin privileges and logging in as this user rather than with the root user credentials. Let's do this now.
+The Identity and Access Management (IAM) service is used to manage users within an AWS account. Different permissions can be granted to different users for different resources. You can log on to AWS using the email address and password you provided when you signed up, which will give you full root access to your account; however, for security reasons, Amazon suggests creating a user with admin privileges and logging in as this user rather than with the root user credentials.
 
 ## Create user
 
@@ -43,7 +43,7 @@ Return to the *Users* page of the [IAM Dashboard](https://console.aws.amazon.com
 
 ## Assign permissions
 
-The user you just created will need administator privileges. To do this you'll need to create a group with these privileges, then add the user to this group. Return to the [IAM Dashboard](https://console.aws.amazon.com/iam/), select *Groups* in the left panel, then click the *Create New Goup* button. You be prompted to enter a group name, use `administrators`, or something similar. On the next page you specify permissions for the group, click the check box next to `AdministratorAccess`. Finally, click the *Create Group* button.
+The user you just created will need administrator privileges. To do this you'll need to create a group with these privileges, then add the user to this group. Return to the [IAM Dashboard](https://console.aws.amazon.com/iam/), select *Groups* in the left panel, then click the *Create New Goup* button. You'll be prompted to enter a group name, use `administrators`, or something similar. On the next page, click the check box next to `AdministratorAccess`. Finally, click the *Create Group* button.
 
 Return to the [*Groups*](https://console.aws.amazon.com/iam/home#groups) page of the IAM dashboard. Click on the group you just created, click the blue *Add Users to Group* button, and and choose the user you created.
 

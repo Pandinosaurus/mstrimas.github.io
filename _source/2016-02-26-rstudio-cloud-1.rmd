@@ -23,6 +23,38 @@ At the end of this tutorial, you'll have RStudio running in the cloud on AWS and
 2. **Seamlessly work across locations**: Doing most of my work on a persistent cloud-based RStudio instance allows me to move between locations and computers seamlessly. I can log in using any computer with a browser and internet connection and my RStudio session is exactly as I last left it.
 3. **Computing power**: Perhaps the most obvious value of computing in the cloud is the ridiculous computing power at your fingertips. Much of the time, the free tier available through AWS is enough, but sometimes I encounter a more computationally intensive task. When this happens, I spin up one of the more powerful multi-core EC2 instances, run my job, then terminate the instance. Often a huge amount of time can be saved with minimal cost.
 
+# Create IAM user
+
+The Identity & Access Management (IAM) service is used to manage users within an AWS account. Different permissions can be granted to different users for different resources. You can log on to AWS using the email address and password you provided when you signed up, which will give you full root access to your account; however, for security reasons, Amazon suggests creating a user with admin privileges and logging in as this user rather than with the root user credentials. Let's do this now.
+
+## Create user
+
+Log in to the [AWS Console](console.aws.amazon.com) and click on the Identity & Access Management icon under *Security & Identity*.
+
+<img src="/img/rstudio-cloud/iam-icon.png" style="display: block; margin: auto;" />
+
+Click on *Users* in the left panel, then click the *New Users* button. Enter a sensible user name in the first box, check *Generate an access key for each user*, and click the *Create* button. On the next page click the *Download Credentials* button. This will download a `credentials.csv` file, which you should save somewhere safe.
+
+<img src="/img/rstudio-cloud/new-iam-user.png" style="display: block; margin: auto;" />
+
+Return to the *Users* page of the [IAM Dashboard](https://console.aws.amazon.com/iam/). You should see the IAM user you just created listed here. Click the check box next to this user, then choose *Manage Password* from the *User Actions* dropdown, and assign a password.
+
+<img src="/img/rstudio-cloud/iam-password.png" style="display: block; margin: auto;" />
+
+## Assign permissions
+
+The user you just created will need administator privileges. To do this you'll need to create a group with these privileges, then add the user to this group. Return to the [IAM Dashboard](https://console.aws.amazon.com/iam/), select *Groups* in the left panel, then click the *Create New Goup* button. You be prompted to enter a group name, use `administrators`, or something similar. On the next page you specify permissions for the group, click the check box next to `AdministratorAccess`. Finally, click the *Create Group* button.
+
+Return to the [*Groups*](https://console.aws.amazon.com/iam/home#groups) page of the IAM dashboard. Click on the group you just created, click the blue *Add Users to Group* button, and and choose the user you created.
+
+## Log in with IAM user
+
+Return to the front page of the [IAM Dashboard](https://console.aws.amazon.com/iam/). At the top of the page there is a URL that you'll use to log on to AWS as an IAM user. If you want, this can be customized to something easier to remember.
+
+<img src="/img/rstudio-cloud/iam-login-page.png" style="display: block; margin: auto;" />
+
+Visit the login URL (bookmark it now!) and enter the user name and password for the IAM user you just created. In general, when using AWS you should log in in this way.
+
 # Deploying an EC2 instance
 
 Log in to the [AWS Console](console.aws.amazon.com) and click on the EC2 icon under *Compute*. Now select the region appropriate for your location from the drop down on the top right. I've selected Oregon since I live in Vancouver.

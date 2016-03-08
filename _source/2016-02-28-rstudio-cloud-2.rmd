@@ -3,13 +3,13 @@ layout: post
 title: "RStudio in the Cloud II: Syncing Code & Data with AWS"
 published: true
 excerpt: >
-  Tutorial on transferring and syncing data between Amazon Web Services (AWS) and your
-  local machine, with a focus on R and RStudio.
+  Tutorial on transferring and syncing data between an Amazon Web Services (AWS)
+  EC2 instance and your local machine, with GitHub and S3.
 category: r
 tags: r cloud
 ---
 
-This is part II in a series of posts about using RStudio on Amazon Web Services (AWS). In [part I](http://strimas.com/r/rstudio-cloud/), I outlined how to quickly get RStudio Server running on an AWS EC2 instance. This gives you access to RStudio via a web browser with as much (or as little) computing power as you need for any given task.
+This is part II in a series of posts about using RStudio on Amazon Web Services (AWS). In [part I](http://strimas.com/r/rstudio-cloud-1/), I outlined how to quickly get RStudio Server running on an AWS EC2 instance. This gives you access to RStudio via a web browser with as much (or as little) computing power as you need for any given task.
 
 Once you have RStudio up and running, you'll likely want to transfer or sync some data and/or code between the remote AWS instance and your local machine. This tutorial covers this syncing process.
 
@@ -28,6 +28,38 @@ There are a variety of approaches for syncing or transferring data between an EC
 I've created a [simple RStudio project](https://github.com/mstrimas/aws-example) for demonstration purposes. It contains a data set taken from the UN [Food and Agriculture Organization's](http://www.fao.org/home/en/) [Forest Resources Assessment](http://www.fao.org/forest-resources-assessment/explore-data/en/). [Download](https://github.com/mstrimas/aws-example/archive/master.zip) and unzip the project before you continue.
 
 The `forest-loss.r` script reads in the data, processes it, and produces a figures, which is saved as a PNG file.
+
+## S3
+
+Amazon's **Simple Storage Service (S3)** offers [extremely cheap](https://aws.amazon.com/s3/pricing/) (~$0.03 per TB per month), highly scalable cloud-based storage of objects of almost any size. In S3, data (i.e. files) are bundled together with metadata into a [**objects**](https://en.wikipedia.org/wiki/Object_storage), and objects are organized into **buckets**. Buckets are given unique names and objects are given unique.
+
+## Install and configure the AWS CLI
+
+To use S3 you'll need to install the Amazon Command Line Interface on your local machine. For Linux and Mac OS X users, run the following commands in the Terminal.
+
+```
+curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
+unzip awscli-bundle.zip
+sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
+rm -r awscli-bundle*
+```
+
+For Windows users, use the [installer provided by AWS](http://docs.aws.amazon.com/cli/latest/userguide/installing.html#install-msi-on-windows).
+
+Now you'll need to configure the AWS CLI to interact with AWS. For this, you'll need the `credentials.csv` file you downloaded when [creating an IAM user](http://strimas.com/r/rstudio-cloud-1/#create-iam-user) at the start of part I of this series. If you can't find this file, you'll need to [create a new access key](http://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#Using_CreateAccessKey) and download a new `credentials.csv` file.
+
+
+
+## Create a bucket
+
+On S3, files are stored in buckets. 
+
+Once you have an RStudio project that you've pushed to GitHub, point your browser to your EC2 instance and log on to RStudio Server ([covered in part I](http://strimas.com/r/rstudio-cloud-1/)).
+
+```bash
+ssh -i ~/aws.pem ubuntu@ec2-52-36-52-70.us-west-2.compute.amazonaws.com
+```
+
 
 ## SCP
 
@@ -77,11 +109,3 @@ Most of this command is identical to what we did previously when copying to AWS,
 - The `.` tells SCP to just put the file in the current directory. You could also specify the path to a directory on your local machine to put the file there instead. 
 
 ## Dropbox
-
-## S3
-
-Once you have an RStudio project that you've pushed to GitHub, point your browser to your EC2 instance and log on to RStudio Server ([covered in part I](http://strimas.com/r/rstudio-cloud/)).
-
-```bash
-ssh -i ~/aws.pem ubuntu@ec2-52-36-52-70.us-west-2.compute.amazonaws.com
-```

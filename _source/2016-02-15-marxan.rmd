@@ -13,23 +13,507 @@ tags: r marxan conservation
 setwd("_source/")
 ```
 
-```{r packages}
+More than 1/8th of Earth's land area is within some form of [protected area](http://www.protectedplanet.net/); however, protected area (PA) networks often do a poor job of representing the biodiversity that they ostensibly protect. In large part, this is because new parks and PAs historically haven't been placed in the optimal locations for conservation. Often they are placed opportunistically, where the land is cheap and unlikely to experience land use change anyway. Many of the most famous parks in North America (e.g. Yosemite or Banff) were chosen more for scenic and recreation value than conservation potential. Or, more subtly, PAs may not complement each other, with some taxa or habitats overrepresented and others underrepresented.
+
+Enter the field of Systematic Conservation Planning, which offers a set of tools and techniques for systematically identifying the optimal location of new PAs in a way that maximizes conservation benefit and minimizes socio-economic cost. These tools have changed the way conservation decisions are made, and how and where conservation resources are allocated. [Marxan](http://uq.edu.au/marxan/) is the most widely used tool for systematic reserve design. It's used globally in both the terrestrial and marine realms, for projects large and small.
+
+A detailed understanding of how Marxan works isn't required to use the software; however, I hate a black box so, as I started using Marxan, I began digging into the documentation and source code to see exactly what it was doing. This led me to emulating Marxan within R as a means of checking that I was understanding everything correctly. In addition, this R Marxan emulator offers a nice platform for prototyping changes to Marxan without having to deal with the C source code. Of course, Marxan is highly optimized in C and very feature rich, and this R emulator could never be used in a real planning exercise. But, I present it here in the hopes that it may be instructive.
+
+# Required packages
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(assertthat)
 library(sp)
+library(raster)
+library(rgeos)
+library(rasterVis)
+library(viridis)
+library(gstat)
 library(marxan)
+set.seed(1)
 ```
-
-More than an 1/8 of Earth's land area is within some form of [protected area](https://en.wikipedia.org/wiki/Protected_area); however, protected area (PA) networks often do a poor job of representing the biodiversity that they ostensibly protect. In large part, this is because new parks and PAs have historically haven't been placed in the optimal locations for conservation. Often they are placed opportunistically, where the land is cheap and unlikely to experience land use change anyway. For many of the most famous parks in North America (e.g. Yosemite or Banff), they may have been chosen more for scenic and recreation value than conservation potential. Or, more subtly, a network of PAs may not complement each other, with some taxa or habitats overrepresented and others underrepresented.
-
-Enter the field of Systematic Conservation Planning, which offers a set of tools and techniques for systematically identifying the optimal location of new PAs in a way that maximizes conservation benefit and minimizes socio-economic cost. These tools have changed the way conservation decisions are made, and how and where conservation resources are allocated. [Marxan](http://uq.edu.au/marxan/) is the most widely used tool for the systematic design on PAs. It's used globally in both the terrestrial and marine realms, for projects large and small.
-
-A detailed understanding of how Marxan works isn't required to use the software; however, I hate a black box so, as I started using it, I began digging into the documentation and source code to see exactly what it was doing. This led me to emulating Marxan within R as a means of checking that I was understanding everything correctly. In addition, this R Marxan emulator offers a nice platform for prototyping changes to Marxan without having to deal with the C source code. Of course, Marxan is highly optimized in C and very feature rich, and this R emulator could never be used in a real planning exercise. But, I present it here in the hopes that it may be instructive.
 
 # Background
 
+## Resources
+
+To write this post, I used the following resources:
+
+- The [Marxan User Manual](http://www.uq.edu.au/marxan/docs/Marxan_User_Manual_2008.pdf)
+- The [Marxan Good Practices Handbook](http://www.uq.edu.au/marxan/docs/Marxan%20Good%20Practices%20Handbook%20v2%202010.pdf)
+- The book [Spatial Convervation Prioritization](https://global.oup.com/academic/product/spatial-conservation-prioritization-9780199547777)
+- The [Marxan source code](https://github.com/mattwatts/marxan244) on GitHub
+- The C source code for R's `optim` function, which implements simulated annealing
+
 ## Marxan
 
-A Marxan excercise starts by dividing the study region into planning units (typically square or hexagonal cells) and, for each planning unit, calculating the cost and the distribution of features of conservation interest. The **cost** might be the acquisition cost of the land, the costs of management, the opportunity cost of foregone commercial activities (e.g. from logging or oil palm development), or simply the area. The **conservation features** are typically species (e.g. Clouded Leopard) or habitats (e.g. mangroves or cloud forest). Then, for each conservation feature, representation targets must be set, such as 20% of the historical extent of cloud forest or \\(  1000 km^2 \\) of Clouded Leopard habitat.
+A Marxan exercise starts by dividing the study region into planning units (typically square or hexagonal cells) and, for each planning unit, assigning values that quantify socio-economic cost and conservation benefit for a set of conservation features. The **cost** can be the acquisition cost of the land, the costs of management, the opportunity cost of foregone commercial activities (e.g. from logging or oil palm development), or simply the area. The **conservation features** are typically species (e.g. Clouded Leopard) or habitats (e.g. mangroves or cloud forest). The benefit that each features derives from a planning unit can take a variety of forms, but is typically either occupancy (i.e. presence or absence) or area of occurence within each planning unit. Finally, for each conservation feature, representation targets must be set, such as 20% of the historical extent of cloud forest or 10,000km<sup>2</sup> of Clouded Leopard habitat.
 
-Given these inputs, Marxan finds the set of planning units that meets the representation targets for the lowest cost. This 
+The ultimate goal of a conservation planning exercise is to ensure the long term **persistence** of the conservation features. When planning for persistence, it's important to consider the total area of protected habitat *and* the spatial configuration of that habitat. A reserve network that is highly [fragmented](https://en.wikipedia.org/wiki/Habitat_fragmentation) with poor [connectivity](https://en.wikipedia.org/wiki/Landscape_connectivity) between patches will not be able to support species in the long term. To account for this, Marxan can be configured to look for more compact reserve networks by minimizing the total boundary length of the reserve.
+
+Given these inputs, Marxan finds the set of planning units that meets the representation targets while minimizing cost and boundary length. This is a form of the [**minimum set cover problem**](https://en.wikipedia.org/wiki/Set_cover_problem) and is formulated mathematically, for \\( n \\) planning units and \\( m \\) conservation features, as:
+
+$$
+\text{Minimize} \sum_{i=1}^{n}x_i c_i + 
+b \sum_{i=1}^{n} \sum_{j=1}^{n}x_i (1-x_j)\nu_{ij}
+\text{ subject to } \sum_{i=1}^{n}x_i r_{ij}
+\geq T_j \space \forall \space j 
+$$
+
+where \\( x_i \\) is a binary decision variable specifying whether a planning unit has been selected (1) or not (0), \\( c_i \\) is the cost of planning unit \\( i \\), \\( \nu_{ij} \\) is a matrix of boundary lengths between planning units, \\( r_{ij} \\) is the representation level of feature \\( j \\) in planning unit \\( i \\), and \\( T_j \\) is the target for feature \\( j \\). Finally, $b$ is known as the **Boundary Length Modifier (BLM)** and determines how much emphasis should be placed on producing compact and connected solutions relative to meeting targets and minimizing cost. Note that the second term, with the double summation, is just the total length of the external boundary of the reserve network.
+
+Finally, a status code can be assigned to each planning unit to specify whether it is locked in or locked out the of solution. The codes and their meanings are as follows:
+
+|Status|Meaning                                                             |
+|:-----|:-------------------------------------------------------------------|
+|0     |Not guaranteed in initial reserve system                            |
+|1     |Included in initial reserve system, but not guaranteed in final     |
+|2     |Locked in to solution, i.e. guaranteed protected                    |
+|3     |Lockout out of solution, i.e. guaranteed unprotected                |
+
+Marxan requires 5 input files in order to run:
+
+1.  Planning Units (pu.dat): units to be considered for the reserve system, including cost and status.
+2.  Conservation Features (spec.dat): features and corresponding targets.
+3.  Planning Units vs. Conservation Features (puvspr2.dat): representation level of each feature within each planning unit.
+4.  Boundary Length (bound.dat): pairwise shared boundaries between planning units.
+5.  Parameters (input.dat): parameters and settings for the Marxan run.
+
+The [`marxan`](https://github.com/paleo13/marxan) R package acts as an interface between R and Marxan. It automates the process of generating these input files from R objects and provides an R wrapper for the Marxan executable.
 
 ## Simulated Annealing
+
+The main method that Marxan uses for solving reserve design problems is **simulated annealing**, a stochastic heuristic for approximating global optima of complex functions with many local optima. Simulated annealing is a highly flexible optimization method that that minimizes a given **objective function** over a set of **decision variables** by stochastically exploring the state space of the decision variables. Starting from a randomly generated initial state, simulated annealing proceeds iteratively by:
+
+1.  Randomly picking a neighbouring state from a well-defined set of candidates, and calculating the value of the objective function at this state.
+2.  If the candidate state reduces the objective function, accept it. If the candidate state increases the objective function, accept it according to an **acceptance probability**, which depends on the change in objective function value and a global **temperature** parameter.
+3.  As the heuristic progresses, the temperature parameter gradually decreases according to an **annealing schedule**. As a result, changes that increase the objective function become less likely to be accepted. Initially permitting "bad" changes ensures that the heuristic is unlikely to get caught in a local minimum.
+
+Simulated annealing does not find the true minimum of the objective function. Rather it finds a near optimal solution and, since it is stochastic, each time simulated annealing is run a different near optimal solution is returned.
+
+In the context of Marxan, the decision variable is a binary vector indicating which planning units are included in the reserve, and the states are different reserve configurations. Choosing a neighbouring state involves randomly selecting a planning unit and switching its status from selected to not selected or vice versa. In a typical Marxan run, simulated annealing is performed many times to generate a suite of possible reserve networks. Thus, multiple options can be presented to decision makers, and the importance of particular planning units can be measured by the selection frequency (i.e. number of solutions containing that planning unit).
+
+# Example data
+
+First I create some very simple example data: 9 species distributions, a cost layer, and a grid of 100km<sup>2</sup> planning units, all defined on a 100km x 100km study area.
+
+## Conservation features
+
+I create 9 artificial 1km resolution raster layers that I'll use to represent species distributions. To work with data that are at least somewhat realistic I introduce some autocorrelation into the layers by [generating spatially autocorrelated Gaussian random fields](http://santiago.begueria.es/2010/10/generating-spatially-correlated-random-fields-with-r/). I also give 3 different characteristic scales for the species and 3 different levels of rarity.
+
+```{r features, results='hide'}
+# raster template
+utm10 <- crs('+proj=utm +zone=10 +ellps=GRS80 +datum=NAD83 +units=km +no_defs')
+r <- extent(c(0, 100, 0, 100)) %>% 
+    raster(nrows = 100, ncols = 100, crs = utm10, vals = 1)
+
+gaussian_field <- function(r, range, pct) {
+  gsim <- gstat(formula = (z ~ 1), dummy = TRUE, beta = 1, nmax = 20,
+               model = vgm(psill = 1, range = range, model = 'Exp'))
+  vals <- rasterToPoints(r, spatial = TRUE) %>% 
+    geometry %>% 
+    predict(gsim, newdata = ., nsim = 1) %>% 
+    {scale(.$sim1)}
+  if (!missing(pct)) {
+    vals <- as.integer(vals < quantile(vals, pct))
+  }
+  r[] <- vals
+  r
+}
+
+# conservation features
+species <- mapply(function(x, y, r) gaussian_field(r = r, range = x, pct = y),
+                  rep(3^(0:2), 3), rep(c(0.01, 0.10, 0.25), each = 3),
+                  MoreArgs = list(r = r)) %>% 
+  stack %>% 
+  setNames(letters[1:9])
+levelplot(species, main='Feature Distribution', layout = c(3, 3),
+          scales=list(draw=FALSE),
+          col.regions = c("grey20", "#fd9900"), colorkey = FALSE)
+```
+
+## Cost
+
+I use a similar approach to generating a spatially autocorrelated cost layer.
+
+```{r cost, results='hide'}
+cost <- gaussian_field(r, 10) %>% 
+  stretch(10, 1000) %>% 
+  setNames("cost")
+levelplot(cost, main = "Cost", margin = FALSE,
+          col.regions = viridis, at = seq(0, 1000, len = 256))
+```
+
+## Planning units
+
+```{r make-grid, echo=FALSE}
+make_grid <- function(x, type, cell_width, cell_area, clip = FALSE) {
+  if (!type %in% c("square", "hexagonal")) {
+    stop("Type must be either 'square' or 'hexagonal'")
+  }
+  
+  if (missing(cell_width)) {
+    if (missing(cell_area)) {
+      stop("Must provide cell_width or cell_area")
+    } else {
+      if (type == "square") {
+        cell_width <- sqrt(cell_area)
+      } else if (type == "hexagonal") {
+        cell_width <- sqrt(2 * cell_area / sqrt(3))
+      }
+    }
+  }
+  # buffered extent of study area to define cells over
+  ext <- as(extent(x) + cell_width, "SpatialPolygons")
+  projection(ext) <- projection(x)
+  # generate grid
+  if (type == "square") {
+    g <- raster(ext, resolution = cell_width)
+    g <- as(g, "SpatialPolygons")
+  } else if (type == "hexagonal") {
+    # generate array of hexagon centers
+    g <- spsample(ext, type = "hexagonal", cellsize = cell_width, offset = c(0, 0))
+    # convert center points to hexagons
+    g <- HexPoints2SpatialPolygons(g, dx = cell_width)
+  }
+  
+  # clip to boundary of study area
+  if (clip) {
+    g <- gIntersection(g, x, byid = TRUE)
+  } else {
+    g <- g[x, ]
+  }
+  # clean up feature IDs
+  row.names(g) <- as.character(1:length(g))
+  return(g)
+}
+```
+
+In a [previous post](http://strimas.com/spatial/hexagonal-grids/), I discussed the merits of hexagonal grids and defined a funtion to create such grids. I now use that function to generate a grid (see [previous post](http://strimas.com/spatial/hexagonal-grids/) for definition of `make_grid`). Since I'll be performing the simulated annealing within R, I want to keep the parameter space small so the problem is feasible. Therefore, I divide the study area up in to just 80 100km<sup>2</sup> planning units.
+
+For completeness I randomly assign 4 planning units to be locked in and 4 to be locked out. Locked in planning units are typically those already within protected areas, while locked out planning units could be developed for another land use (e.g. urban or plantation) and therefore be unavailable for protection.
+
+```{r pus}
+sa_border <- as(extent(r), "SpatialPolygons")
+projection(sa_border) <- projection(r)
+pu <- make_grid(sa_border, "hexagonal", cell_area = 100, clip = FALSE)
+pu <- pu[gContains(sa_border, pu, byid = TRUE), ]
+pu$id <- 1:length(pu)
+row.names(pu) <- as.character(pu$id)
+pu$status <- 0
+s <- sample(1:length(pu), 8)
+pu$status[s[1:4]] <- 2
+pu$status[s[5:8]] <- 3
+```
+
+Now I average the cost raster layer over the hexagonal planning units.
+
+```{r pu-cost}
+pu <- raster::extract(cost, pu, fun = mean, na.rm = TRUE, sp = TRUE)
+spplot(pu, "cost", main = "Planning Unit Cost", col.regions = viridis(256),
+       at = seq(floor(min(pu$cost)), ceiling(max(pu$cost)), len = 256))
+```
+
+# Implementation in R
+
+Now that I've given an overview of the problem, and generated some data, it's time to explore the details of Marxan and reconstruct them in R. I break down each component in turn, defining functions for each task.
+
+## Pre-processing
+
+Some pre-processing needs to be done to get the spatial data into a form useful for simulated annealing.
+
+### Feature representation
+
+The spatial distribution of features over the landscape typically comes in the form of a series of raster layers, which I generated above. Here I create a function that summarizes these layers to a data frame of species representation within each planning unit, which is essentially the \\( r_{ij} \\) term in the above objective function and the `puvspr.dat` Marxan input file.
+
+```{r sp-occ}
+summarize_features <- function(features, pu) {
+  raster::extract(features, pu, fun = sum, na.rm = TRUE, sp = FALSE) %>% 
+    data.frame(pu = pu$id, .) %>% 
+    gather(feature, amount, -pu)
+}
+puvspr <- summarize_features(species, pu)
+head(rij, 10) %>% 
+  kable
+```
+
+### Target setting
+
+Prior to a Marxan run, absolute representation targets for each conservation feature must be set. This may ocur through expert elicitation, modeling exercise to determine the amount of habitat necessary to ensure persistence, or more informal methods. Regardless, it's very common to set proportional targets, such as protected 20% of the range of a given species or habitat type. I define a function that converts proportional targets to absolute representation targets. The data frame output by this function corresponds to the `spec.dat` Marxan input file.
+
+```{r target-setting}
+set_targets <- function(rij, prop) {
+  assert_that(length(prop) == 1 || is.data.frame(prop))
+  
+  rij_sum <- group_by(rij, feature) %>% 
+    summarize(amount = sum(amount))
+  
+  if (is.data.frame(prop)) {
+    assert_that("feature" %in% names(prop),
+                all(rij_sum$feature %in% prop$feature))
+    targets <- inner_join(rij_sum, prop, by = "feature") %>% 
+      mutate(prop = target, target = target * amount)
+  } else {
+    targets <- mutate(rij_sum, prop = prop, target = prop * amount)
+  }
+  dplyr::select(targets, feature, target, prop, amount)
+}
+# 20% target for all species 
+set_targets(puvspr, 0.2) %>% 
+  kable
+# species specific targets
+spec <- data_frame(feature = letters[1:9],
+                   target = rep(c(0.50, 0.25, 0.10), each = 3)) %>% 
+  set_targets(puvspr, .)
+kable(spec)
+```
+
+## Simulated annealing
+
+Next, I'll delve into simulated annealing, which I describe in general above. The function `optim` in the `stats` package provides implementations for a variety of optimization methods, including simulated annealing. For efficiency, each of the optimization methods is actually implemented in C and called via R. The [C source code](https://github.com/wch/r-source/blob/b156e3a711967f58131e23c1b1dc1ea90e2f0c43/src/appl/optim.c) is viewable on GitHub.
+
+### Annealing schedule
+
+Recall that the key to simulated annealing is that "bad" changes are accepted with some probability that declines as the heuristic progresses. This acceptance probability is given by:
+
+$$
+\min\left \{ 1,\exp \left (-\frac{f(\vec{x}_{n+1}) - f(\vec{x}_n)}{T_m} \right ) \right \}
+$$
+
+where \\( \\vec{x}_n \\) is the binary decision variable at annealing iteration \\( n \\) and \\( T_m \\) is the temperature parameter after \\( m \\) decreases. The two different indices, \\( n \\) and \\( m \\), occur because, at each temperature, there are typically multiple annealing iterations performed. The **annealing schedule** determines the rate at which temperature decreases, and alternate implementations of simulated annealing use different functional forms for the schedule. In partcular, Marxan uses
+
+$$
+T_m = \alpha^m * T_0
+$$
+
+and `optim` uses
+
+$$
+T_m = \frac{T_0}{\log(m + e)}
+$$
+
+where \\( T_0 \\) is the starting temperature and \\( \\alpha \\) is a cooling factor, both of which are user-defined parameters.
+
+### Vanilla R implementation
+
+Since `optim` uses a different annealing schedule, and the inner workings are obscured because it uses C, I implement my own Marxan-like simulated annealing in plain R.
+
+```{r sa}
+anneal <- function(x_init, objective, neighbour, n, ntemp, t_init, alpha) {
+  assert_that(is.count(n), is.count(ntemp),
+              ntemp > 1, ntemp <= n, 
+              n %% ntemp == 0)
+  
+  n_per_temp <- floor(n / ntemp)
+  t <- t_init
+  x <- x_init
+  for (i in 1:n) {
+    if (i %% n_per_temp == 0) {
+      # decrease temperature
+      t <- alpha * t
+    }
+    x_try <- neighbour(x)
+    delta <- objective(x_try) - objective(x)
+    if (delta <= 0) {
+      # "good" change
+      x <- x_try
+    } else if (runif(1) < exp(-delta / t)) {
+      # "bad" change
+      x <- x_try
+    }
+  }
+  return(x)
+}
+```
+
+In this implementation, `objection` and `neighbour` are the objective function and neighbour selection function respectively. `x_init` is a vector of initial values for the decision variable, `n` is the number of iterations, `ntemp` is the number of temperature decreases, `t_init` is the starting temperature (\\( T_0 \\)), and `alpha` is the cooling factor (\\( \\alpha \\)).
+
+To keep this simulated annealing implementation as flexible as possible, the only arguement the objective and neighbour selection functions take is the vector of decision variables. In general, other data or parameters will be required to evaluate these functions, but this additional information must be stored within the enclosing environment of the function. This can be accomplished using **closures** functions created by other functions, which have access to all variables in the parent function. This will become more clear when I define these closure below. The [Advanced R](http://adv-r.had.co.nz/) book by Hadley Wickham has great coverage of this topic, particularly the sections on [function environments](http://adv-r.had.co.nz/Environments.html#function-envs) and [closures](http://adv-r.had.co.nz/Functional-programming.html#closures)
+
+## Initial reserve system
+
+Simulated annealing needs to start somewhere. Marxan randomly picks a user-defined proportion of planning units to be included in the initial reserve system. I defined a function that, given an set of planning units and a proportion, returns a logical vector indictating which units are selected for the inital reserve. In addition, the planning unit status described above is taken into account when choosing which units to include in the initial reserve.
+
+```{r initial}
+init_res <- function(pu, prop = 0) {
+  n <- round(prop * nrow(pu))
+  # account for locked in planning units
+  x <- pu$status %in% 1:2
+  if (sum(x) >= n) {
+    return(x)
+  }
+  # add more to meet specified proportion
+  n <- n - sum(x)
+  add <- which(pu$status == 0) %>% 
+    sample(n)
+  x[add] <- TRUE
+  return(x)
+}
+sum(init_res(pu, 0.5)) / length(pu)
+```
+
+## Neighbour selection function
+
+At each iteration, simulated annealing must have some means of moving from the current candidate state to a neighbouring candidate state In the case of Marxan, this is as simple as switching the binary decision variable for a single, randomly chosen plannin unit. Again, planning unit status must be taken into account since some units must be excluded.
+
+As noted above, the neighbour function must be a closure taking just one arguement: the vector of decision variables. The list of planning units that can be switched (i.e. those with status 0 or 1) is stored in the enclosing environment. To make this all happen, I define a generator function for Marxan-like neighbour selection closures.
+
+```{r neighbour}
+generate_nsf <- function(pu) {
+  x_valid <- (1:nrow(pu))[pu$status %in% 0:1]
+  rm(pu)
+  function(x) {
+    i <- sample(x_valid, 1)
+    x[i] <- !x[i]
+    return(x)
+  }
+}
+ex_nsf <- generate_nsf(pu)
+ex_res <- init_res(pu, 0)
+neigh <- ex_nsf(ex_res)
+sum(ex_res - neigh)
+```
+
+## Objective function
+
+Recall that the problem Marxan seeks to solve can be formulated mathematically in terms of the minimization of an objective function subject to the constraint that all representation targets are met:
+
+$$
+\text{Minimize} \sum_{i=1}^{n}x_i c_i + 
+b \sum_{i=1}^{n} \sum_{j=1}^{n}x_i (1-x_j)B_{ij}
+\text{ subject to } \sum_{i=1}^{m}x_i r_{ij}
+\geq T_j \space \forall \space j
+$$
+
+The two terms in the objective function correspond to minimizing the cost and external boundary of the reserve network, respectively. Rather than strictly enforcing the representation constraint, Marxan incorporates the constraint into the objective function as a **shortfall penalty**. This approach is more efficient because the constraint does not have to be enforced in each simulated annealing iteration. Furthermore, it allows more flexibility within simulated annealing, by temporarily allowing solutions that don't meet targets. The unconstrained objective function that Marxan actually optimizes is:
+
+$$
+f(\vec{x}) = \sum_{i=1}^{n}x_i c_i + 
+b \sum_{i=1}^{n} \sum_{j=1}^{n}x_i (1-x_j)\nu_{ij} +
+\sum_{j=1}^{m}s_j \gamma_j\cdot 
+\max\left( 1 - \frac{1}{T_j}\sum_{i=1}^{n}x_i r_{ij},0\right)
+$$
+
+The final term is the shortfall penalty. For each feature for which the target isn't met, this penalty is proportional to the relative shortfall to the target. The parameter \\( s_j \\) is the **Species Penalty Factor (SPF)**, which determines the magnitude of the penalty to apply if the target isn't met for a given feature. A larger value of the SPF will put more emphasis on meeting targets for that feature relative to minimizing cost and boundary length. Finally, \\( \\gamma_j \\) is the base shortfall penalty, which essentially acts to convert the shorfall penalty into units of cost. Marxan calculates these values as the cost of meeting a given feature's target in the cheapest way possible, ignoring all other features This results in the shortfall penalty being an approximation of the cost required to raise a feature's level of representation to the target level.
+
+### Base shortfall penalty
+
+Marxan uses a simple greedy agorithm for estimating \\( \\gamma_j \\). For each feature, planning units are ranked in descending order of efficiency, i.e. the ratio of representation level for that feature and cost (economic cost plus boundary length). Planning units are then added in order until the taret is met, and the resulting cost is \\( \\gamma_j \\). This doesn't guarantee the cheapest way to meet a feature's target, but it give a good approximation.
+
+The approach described in the previous paragraph is what the [Marxan User's Manual](http://www.uq.edu.au/marxan/docs/Marxan_User_Manual_2008.pdf) *says* Marxan is doing; however, looking at the [source code](https://github.com/mattwatts/marxan244), there's an additional wrinkle. Rather that just adding planning units in order of efficiency, Marxan will also look to see if, at any point, the addition of a single planning unit will result in the target being met. If so, and the cost of this planning unit is lower than the cost of the most efficient unit, than this planning unit is chosen instead of the most efficient one.
+
+```{r}
+base_penalty <- function(pu, rij, targets, blm) {
+  # calculate boundary of each planning unit
+  pu$boundary <- gLength(pu, byid = TRUE)
+  # calculate efficiency = representation / cost for each planning unit
+  remaining <- as.data.frame(pu) %>% 
+    mutate(total_cost = (cost + blm * boundary)) %>% 
+    inner_join(rij, ., by = c("pu" = "id")) %>% 
+    filter(amount != 0, status != 3) %>% 
+    mutate(efficiency = amount / total_cost) %>% 
+    arrange(feature, desc(efficiency)) %>% 
+    group_by(feature)
+  # start by including free planning units and those with status = 2
+  p <- filter(remaining, status == 2 | total_cost == 0) %>% 
+    summarize(penalty = sum(total_cost), 
+              cumulative_amount = sum(amount)) %>% 
+    right_join(dplyr::select(targets, feature, target), by = "feature") %>% 
+    mutate(shortfall = (target - cumulative_amount))
+  remaining <- filter(remaining, status != 2, total_cost != 0)
+  for (f in p$feature) {
+    # find and add next best planning unit
+    r <- filter(remaining, feature == f) %>% 
+      arrange(desc(efficiency))
+    while(p$shortfall[p$feature == f] > 0 && nrow(r) > 0) {
+      best <- head(r, 1)
+      meets_target <- r %>% 
+        filter(amount >= p$shortfall[p$feature == f],
+               cost < most_efficient$cost) %>% 
+        head(1)
+      if (nrow(meets_target) > 0) {
+        best <- meets_target
+      }
+      with(p, {
+           shortfall[feature == f] <- shortfall[feature == f] - best$amount
+           cost[feature == f] <- cost[feature == f] - best$cost
+      })
+    }
+  }
+}
+
+setwd("/Users/matt/Documents/msc/marxan/MarxanData/input")
+species <- readr::read_csv("spec.dat")
+puvspr <- readr::read_csv("puvspr.dat")
+pu <- readr::read_csv("pu.dat")
+sum(pu$cost)
+puvspr %>% group_by(species) %>% summarize(amount = 0.2 * sum(amount))
+xxx <- inner_join(puvspr, pu, by = c("pu" = "id")) %>% 
+  filter(amount > 0, species == 1) %>% 
+  mutate(amount_per_cost = amount / cost) %>% 
+  arrange(desc(amount_per_cost))
+head(xxx, 10) %>% kable
+
+View(arrange(xxx, cost))
+
+
+filter(xxx, pu %in% c(52, 25, 7, 5)) %>% 
+  mutate(sum_amount = cumsum(amount), sum_cost = cumsum(cost))
+
+features %>% 
+        subs(data.frame(id=0, v=NA), subsWithNA=FALSE) %>% 
+        `*`(cost) %>% 
+        values %>% 
+        apply(MARGIN = 2, FUN = sort) %>% 
+        mapply(FUN=function(x, t) {sum(x[1:t])}, ., targets) %>% 
+        setNames(names(features))
+```
+
+
+## Targets
+
+Set coverage targets to 30% of the species range. Since direct application of constraints to combinatoral optimization problems significantly increases the amount of time to solve them, it is common to bake the constraint in to the objective function by assigning a penalty (i.e. cost) for not meeting the targets. In the Marxan framework this penalty is determined by:  
+1.  For each feature, determine the cheapest set of sites that will meet the given target. The cost of this set is the base penalty.  
+2.  If the target for a feature is not met, determine the proportion of the target that has been attained.  
+3.  The penalty is given by the base penalty times the proportion target achievement.  
+
+```{r targets}
+# # Use a 30% representation target
+# targets <- (cellStats(species, 'sum') * 0.3) %>% 
+#     round
+# 
+# # Cost to meet individual targets, serves as base penalty
+# spPen <- species %>% 
+#     subs(data.frame(id=0, v=NA), subsWithNA=FALSE) %>% 
+#     `*`(landCost) %>% 
+#     values %>% 
+#     apply(MARGIN = 2, FUN = sort) %>% 
+#     mapply(FUN=function(x, t) {sum(x[1:t])}, ., targets) %>% 
+#     setNames(names(species))
+```
+
+Objective Function
+------------------
+
+For a given candidate reserve system, the objective function the cost of the chosen set of sites plus the penalty for not meeting any targets. The goal will be to find a set of sites that minimizes this function.  
+
+```{r objective}
+# objFun <- function(p, x) {
+#     with(x, {
+#         gap <- targets - colSums(p * values(features))
+#         penalty <- bp * ifelse(gap > 0, gap, 0) / targets
+#         sum(cost[p == 1]) + sum(spf * penalty)
+#     })
+# }
+```
+
+# Marxan selection
+
+I start with a normal Marxan run, which I will eventually compare to my R emulation. The R package `marxan` makes running Marxan from within R a breeze
+
+```{r mardan-data}
+
+```
+

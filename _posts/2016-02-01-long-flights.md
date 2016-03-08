@@ -31,7 +31,6 @@ library(sp)
 library(raster)
 library(rgdal)
 library(rgeos)
-library(rgdal)
 library(cleangeo)
 library(geosphere)
 library(plyr)
@@ -197,6 +196,7 @@ flights <- flights %>%
   left_join(cities, by = c("from" = "city")) %>% 
   left_join(cities, by = c("to" = "city")) %>% 
   rename(lng_from = lon.x, lat_from = lat.x, lng_to = lon.y, lat_to = lat.y)
+#> Error in rename(., lng_from = lon.x, lat_from = lat.x, lng_to = lon.y, : unused arguments (lng_from = lon.x, lat_from = lat.x, lng_to = lon.y, lat_to = lat.y)
 ```
 
 # Flight paths
@@ -218,11 +218,14 @@ gc_routes <- gcIntermediate(flights_unique[c("lng_from", "lat_from")],
                             flights_unique[c("lng_to", "lat_to")],
                             n = 360, addStartEnd = TRUE, sp = TRUE, 
                             breakAtDateLine = TRUE)
+#> Error in .check_names_df(x, i): undefined columns: lng_from, lat_from
 gc_routes <- SpatialLinesDataFrame(gc_routes, 
                                    data.frame(rank = flights_unique$rank,
                                               route = flights_unique$route,
                                               stringsAsFactors = FALSE))
+#> Error in slot(sl, "lines"): object 'gc_routes' not found
 row.names(gc_routes) <- as.character(gc_routes$rank)
+#> Error in eval(expr, envir, enclos): object 'gc_routes' not found
 ```
 
 # Global map
@@ -245,6 +248,7 @@ world <- shapefile('data/long-flights/ne_110m_admin_0_countries_lakes.shp')
 ```r
 world_df <- fortify(world)
 gc_routes_df <- fortify(gc_routes)
+#> Error in fortify(gc_routes): object 'gc_routes' not found
 ```
 
 # Mapping
@@ -273,9 +277,8 @@ ggplot() +
         axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank())
+#> Error in fortify(data): object 'gc_routes_df' not found
 ```
-
-<img src="/figures//long-flights_first-map-1.svg" title="plot of chunk first-map" alt="plot of chunk first-map" style="display: block; margin: auto;" />
 
 Looks OK, but there's tons of room for improvement.
 
@@ -297,9 +300,8 @@ ggplot() +
         axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank())
+#> Error in fortify(data): object 'gc_routes_df' not found
 ```
-
-<img src="/figures//long-flights_messy-boundary-1.svg" title="plot of chunk messy-boundary" alt="plot of chunk messy-boundary" style="display: block; margin: auto;" />
 
 Sorting this issue out turned out to be a much bigger challenge than I expected; it seems there's no elegant solution in R. The `nowrapRecenter()` function from the `maptools` package is meant to address this issue, but it only appears to work when the date line is the new center and it still leads to artifacts when the data are projected. Simply removing a small sliver of the polygons at what will become the edge in the new projection works, but this means removing data, it results in a world map that looks chopped off at the edges, and gives a seam at the date line.
 
@@ -463,13 +465,17 @@ routes_nodl <- gcIntermediate(flights_unique[c("lng_from", "lat_from")],
                               flights_unique[c("lng_to", "lat_to")],
                               n = 360, addStartEnd = TRUE, sp = TRUE, 
                               breakAtDateLine = FALSE)
+#> Error in .check_names_df(x, i): undefined columns: lng_from, lat_from
 routes_nodl <- SpatialLinesDataFrame(routes_nodl, 
                                      data.frame(rank = flights_unique$rank,
                                                 route = flights_unique$route,
                                                 stringsAsFactors = FALSE))
+#> Error in slot(sl, "lines"): object 'routes_nodl' not found
 row.names(routes_nodl) <- as.character(routes_nodl$rank)
+#> Error in eval(expr, envir, enclos): object 'routes_nodl' not found
 routes_kav_df <- spTransform(routes_nodl, proj) %>% 
   fortify
+#> Error in spTransform(routes_nodl, proj): error in evaluating the argument 'x' in selecting a method for function 'spTransform': Error: object 'routes_nodl' not found
 # cities
 cities_wgs <- cities
 coordinates(cities_wgs) <- ~ lon + lat
@@ -497,9 +503,8 @@ ggplot() +
         axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank())
+#> Error in fortify(data): object 'routes_kav_df' not found
 ```
-
-<img src="/figures//long-flights_meridian-1.svg" title="plot of chunk meridian" alt="plot of chunk meridian" style="display: block; margin: auto;" />
 
 ## Bounding box and graticules
 
@@ -602,9 +607,8 @@ ggplot() +
             size = 3, color = "grey20", alpha = 0.9, nudge_y = 2, 
             check_overlap = TRUE) +
   theme_nothing()
+#> Error in fortify(data): object 'routes_kav_df' not found
 ```
-
-<img src="/figures//long-flights_add-bbox-1.svg" title="plot of chunk add-bbox" alt="plot of chunk add-bbox" style="display: block; margin: auto;" />
 
 Finally, after a huge amount of work, this North America centered projection is looking good.
 
@@ -616,6 +620,7 @@ Now for the finishing touches: adding nicer labels with `ggrepel`, fine tuning t
 ```r
 routes_att_df <- mutate(flights_unique, id = as.character(rank)) %>% 
   left_join(routes_kav_df, ., by = "id")
+#> Error in left_join(routes_kav_df, ., by = "id"): object 'routes_kav_df' not found
 ```
 
 Then applying a color gradient to the routes. I use the excellent `viridis` package here, which provides perceptually uniform and colour blind friendly colour gradients.
@@ -673,9 +678,8 @@ ggplot() +
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         plot.background = element_blank())
+#> Error in fortify(data): object 'routes_att_df' not found
 ```
-
-<a href="/figures//long-flights_final-1.png"><img src="/figures//long-flights_final-1.png" title="plot of chunk final" alt="plot of chunk final" style="display: block; margin: auto;" /></a>
 
 
 | rank|route                   |airline               | distance (km)| duration (hours)|

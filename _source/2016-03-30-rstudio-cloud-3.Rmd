@@ -1,23 +1,13 @@
 ---
 layout: post
-title: "RStudio in the Cloud II: Syncing Code & Data with AWS"
-published: true
+title: "RStudio in the Cloud III"
+published: false
 excerpt: >
   Tutorial on transferring and syncing data between an Amazon Web Services (AWS)
   EC2 instance and your local machine, with GitHub and S3.
 category: r
 tags: r cloud
 ---
-
-This is part II in a series of posts about using RStudio on Amazon Web Services (AWS). In [part I](http://strimas.com/r/rstudio-cloud-1/), I outlined how to quickly get RStudio Server running on an AWS EC2 instance. This gives you access to RStudio via a web browser with as much (or as little) computing power as you need for any given task.
-
-Once you have RStudio up and running, you'll likely want to transfer or sync some data and/or code between the remote AWS instance and your local machine. This tutorial covers this syncing process.
-
-# Syncing code with AWS
-
-If, like me, you have a persistent RStudio instance on AWS that you use to develop code, you'll want to use **git** and (**GitHub**)[https://github.com/]. These tools are specifically designed for version control, collaborative coding, and keeping code in sync between different machines (e.g. your local machine and AWS). Furthermore, (RStudio)[https://www.rstudio.com/] has great integration with git and GitHub. If you're new to these tools, there are many great tutorials online. [Jenny Bryan's notes](http://stat545-ubc.github.io/git00_index.html) for STAT545 at UBC are an excellent place to start.
-
-On the other hand, if you're just creating a temporary EC2 instance to run some code, it may be easier to just transfer that code along with the data to AWS. For this use case, use one of the approaches described below.
 
 # Syncing Data with AWS
 
@@ -28,37 +18,6 @@ There are a variety of approaches for syncing or transferring data between an EC
 I've created a [simple RStudio project](https://github.com/mstrimas/aws-example) for demonstration purposes. It contains a data set taken from the UN [Food and Agriculture Organization's](http://www.fao.org/home/en/) [Forest Resources Assessment](http://www.fao.org/forest-resources-assessment/explore-data/en/). [Download](https://github.com/mstrimas/aws-example/archive/master.zip) and unzip the project before you continue.
 
 The `forest-loss.r` script reads in the data, processes it, and produces a figures, which is saved as a PNG file.
-
-## S3
-
-Amazon's **Simple Storage Service (S3)** offers [extremely cheap](https://aws.amazon.com/s3/pricing/) (~$0.03 per TB per month), highly scalable cloud-based storage of objects of almost any size. In S3, data (i.e. files) are bundled together with metadata into a [**objects**](https://en.wikipedia.org/wiki/Object_storage), and objects are organized into **buckets**. Buckets are given unique names and objects are given unique.
-
-## Install and configure the AWS CLI
-
-To use S3 you'll need to install the Amazon Command Line Interface on your local machine. For Linux and Mac OS X users, run the following commands in the Terminal.
-
-```
-curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
-unzip awscli-bundle.zip
-sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
-rm -r awscli-bundle*
-```
-
-For Windows users, use the [installer provided by AWS](http://docs.aws.amazon.com/cli/latest/userguide/installing.html#install-msi-on-windows).
-
-Now you'll need to configure the AWS CLI to interact with AWS. For this, you'll need the `credentials.csv` file you downloaded when [creating an IAM user](http://strimas.com/r/rstudio-cloud-1/#create-iam-user) at the start of part I of this series. If you can't find this file, you'll need to [create a new access key](http://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#Using_CreateAccessKey) and download a new `credentials.csv` file.
-
-
-
-## Create a bucket
-
-On S3, files are stored in buckets. 
-
-Once you have an RStudio project that you've pushed to GitHub, point your browser to your EC2 instance and log on to RStudio Server ([covered in part I](http://strimas.com/r/rstudio-cloud-1/)).
-
-```bash
-ssh -i ~/aws.pem ubuntu@ec2-52-36-52-70.us-west-2.compute.amazonaws.com
-```
 
 
 ## SCP
@@ -109,3 +68,37 @@ Most of this command is identical to what we did previously when copying to AWS,
 - The `.` tells SCP to just put the file in the current directory. You could also specify the path to a directory on your local machine to put the file there instead. 
 
 ## Dropbox
+
+
+
+# Create IAM user
+
+The Identity and Access Management (IAM) service is used to manage users within an AWS account. Different permissions can be granted to different users for different resources. You can log on to AWS using the email address and password you provided when you signed up, which will give you full root access to your account; however, for security reasons, Amazon suggests creating a user with admin privileges and logging in as this user rather than with the root user credentials.
+
+## Create user
+
+Log in to the [AWS Console](console.aws.amazon.com) and click on the Identity & Access Management icon under *Security & Identity*.
+
+<img src="/img/rstudio-cloud/iam-icon.png" style="display: block; margin: auto;" />
+
+Click on *Users* in the left panel, then click the *New Users* button. Enter a sensible user name in the first box, check *Generate an access key for each user*, and click the *Create* button. On the next page click the *Download Credentials* button. This will download a `credentials.csv` file, which you should save somewhere safe.
+
+<img src="/img/rstudio-cloud/new-iam-user.png" style="display: block; margin: auto;" />
+
+Return to the *Users* page of the [IAM Dashboard](https://console.aws.amazon.com/iam/). You should see the IAM user you just created listed here. Click the check box next to this user, then choose *Manage Password* from the *User Actions* dropdown, and assign a password.
+
+<img src="/img/rstudio-cloud/iam-password.png" style="display: block; margin: auto;" />
+
+## Assign permissions
+
+The user you just created will need administrator privileges. To do this you'll need to create a group with these privileges, then add the user to this group. Return to the [IAM Dashboard](https://console.aws.amazon.com/iam/), select *Groups* in the left panel, then click the *Create New Goup* button. You'll be prompted to enter a group name, use `administrators`, or something similar. On the next page, click the check box next to `AdministratorAccess`. Finally, click the *Create Group* button.
+
+Return to the [*Groups*](https://console.aws.amazon.com/iam/home#groups) page of the IAM dashboard. Click on the group you just created, click the blue *Add Users to Group* button, and and choose the user you created.
+
+## Log in with IAM user
+
+Return to the front page of the [IAM Dashboard](https://console.aws.amazon.com/iam/). At the top of the page there is a URL that you'll use to log on to AWS as an IAM user. If you want, this can be customized to something easier to remember.
+
+<img src="/img/rstudio-cloud/iam-login-page.png" style="display: block; margin: auto;" />
+
+Visit the login URL (bookmark it now!) and enter the user name and password for the IAM user you just created. In general, when using AWS you should log in in this way.

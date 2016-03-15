@@ -138,39 +138,38 @@ dplyr::select(flights, rank, route, airline, distance, duration) %>%
 
 
 
-| rank|route                   |airline               | distance (km)| duration (min)|
-|----:|:-----------------------|:---------------------|-------------:|--------------:|
-|    1|Dallas-Sydney           |Qantas                |        13,804|          1,015|
-|    2|Johannesburg-Atlanta    |Delta Air Lines       |        13,582|          1,000|
-|    3|Abu Dhabi-Los Angeles   |Etihad Airways        |        13,502|            990|
-|    4|Dubai-Los Angeles       |Emirates              |        13,420|            995|
-|    5|Jeddah-Los Angeles      |Saudia                |        13,409|          1,015|
-|    6|Doha-Los Angeles        |Qatar Airways         |        13,367|            985|
-|    7|Dubai-Houston           |Emirates              |        13,144|            980|
-|    8|Abu Dhabi-San Francisco |Etihad Airways        |        13,128|            975|
-|    9|Dallas-Hong Kong        |American Airlines     |        13,072|          1,025|
-|   10|Dubai-San Francisco     |Emirates              |        13,041|            950|
-|   11|New York-Hong Kong      |Cathay Pacific        |        12,983|            975|
-|   12|Newark-Hong Kong        |United Airlines       |        12,980|            960|
-|   13|Newark-Hong Kong        |Cathay Pacific        |        12,980|            950|
-|   14|Abu Dhabi-Dallas        |Etihad Airways        |        12,962|            980|
-|   15|Doha-Houston            |Qatar Airways         |        12,951|            980|
-|   16|Dubai-Dallas            |Emirates              |        12,940|            980|
-|   17|New York-Guangzhou      |China Southern        |        12,878|            965|
-|   18|Boston-Hong Kong        |Cathay Pacific        |        12,827|            950|
-|   19|Johannesburg-New York   |South African Airways |        12,825|            965|
-|   20|Houston-Taipei          |EVA Air               |        12,776|            955|
-|   21|Doha-Dallas             |Qatar Airways         |        12,764|            980|
-|   22|Los Angeles-Melbourne   |Qantas                |        12,748|            950|
-|   23|Los Angeles-Melbourne   |United Airlines       |        12,748|            950|
-|   24|Toronto-Hong Kong       |Cathay Pacific        |        12,569|            930|
-|   25|Toronto-Hong Kong       |Air Canada            |        12,569|            935|
-|   26|New York-Taipei         |EVA Air               |        12,566|            970|
-|   27|New York-Taipei         |China Airlines        |        12,566|            920|
-|   28|Mumbai-Newark           |United Airlines       |        12,565|            965|
-|   29|Mumbai-Newark           |Air India             |        12,565|            955|
-|   30|Chicago-Hong Kong       |United Airlines       |        12,542|            925|
-|   31|Chicago-Hong Kong       |Cathay Pacific        |        12,542|            925|
+| rank|route                   |airline                 | distance (km)| duration (min)|
+|----:|:-----------------------|:-----------------------|-------------:|--------------:|
+|    1|Auckland-Dubai          |Emirates                |        14,203|          1,035|
+|    2|Dallas-Sydney           |Qantas                  |        13,804|          1,015|
+|    3|Johannesburg-Atlanta    |Delta Air Lines         |        13,582|          1,000|
+|    4|Abu Dhabi-Los Angeles   |Etihad Airways          |        13,502|            990|
+|    5|Dubai-Los Angeles       |Emirates                |        13,420|            995|
+|    6|Jeddah-Los Angeles      |Saudia                  |        13,409|          1,015|
+|    7|Doha-Los Angeles        |Qatar Airways           |        13,367|            985|
+|    8|Dubai-Houston           |Emirates                |        13,144|            980|
+|    9|Abu Dhabi-San Francisco |Etihad Airways          |        13,128|            975|
+|   10|Dallas-Hong Kong        |American Airlines       |        13,072|          1,025|
+|   11|Dubai-San Francisco     |Emirates                |        13,041|            950|
+|   12|New York-Hong Kong      |Cathay Pacific          |        12,983|            975|
+|   13|Newark-Hong Kong        |Cathay Pacific          |        12,980|            960|
+|   14|Newark-Hong Kong        |United Airlines         |        12,980|             NA|
+|   15|Abu Dhabi-Dallas        |Etihad Airways          |        12,962|            980|
+|   16|Doha-Houston            |Qatar Airways           |        12,951|            980|
+|   17|Dubai-Dallas            |Emirates                |        12,940|            980|
+|   18|New York-Guangzhou      |China Southern Airlines |        12,878|            965|
+|   19|Boston-Hong Kong        |Cathay Pacific          |        12,827|            950|
+|   20|Johannesburg-New York   |South African Airways   |        12,825|            965|
+|   21|Houston-Taipei          |EVA Air                 |        12,776|            955|
+|   22|Doha-Dallas             |Qatar Airways           |        12,764|            980|
+|   23|Los Angeles-Melbourne   |Qantas                  |        12,748|            950|
+|   24|Los Angeles-Melbourne   |United Airlines         |        12,748|            950|
+|   25|Toronto-Hong Kong       |Cathay Pacific          |        12,569|            930|
+|   26|Toronto-Hong Kong       |Air Canada              |        12,569|            935|
+|   27|New York-Taipei         |EVA Air                 |        12,566|            970|
+|   28|New York-Taipei         |China Airlines          |        12,566|            920|
+|   29|Mumbai-Newark           |United Airlines         |        12,565|            965|
+|   30|Mumbai-Newark           |Air India               |        12,565|            955|
 
 # Geocoding
 
@@ -196,7 +195,6 @@ flights <- flights %>%
   left_join(cities, by = c("from" = "city")) %>% 
   left_join(cities, by = c("to" = "city")) %>% 
   rename(lng_from = lon.x, lat_from = lat.x, lng_to = lon.y, lat_to = lat.y)
-#> Error in rename(., lng_from = lon.x, lat_from = lat.x, lng_to = lon.y, : unused arguments (lng_from = lon.x, lat_from = lat.x, lng_to = lon.y, lat_to = lat.y)
 ```
 
 # Flight paths
@@ -218,14 +216,11 @@ gc_routes <- gcIntermediate(flights_unique[c("lng_from", "lat_from")],
                             flights_unique[c("lng_to", "lat_to")],
                             n = 360, addStartEnd = TRUE, sp = TRUE, 
                             breakAtDateLine = TRUE)
-#> Error in .check_names_df(x, i): undefined columns: lng_from, lat_from
 gc_routes <- SpatialLinesDataFrame(gc_routes, 
                                    data.frame(rank = flights_unique$rank,
                                               route = flights_unique$route,
                                               stringsAsFactors = FALSE))
-#> Error in slot(sl, "lines"): object 'gc_routes' not found
 row.names(gc_routes) <- as.character(gc_routes$rank)
-#> Error in eval(expr, envir, enclos): object 'gc_routes' not found
 ```
 
 # Global map
@@ -248,7 +243,6 @@ world <- shapefile('data/long-flights/ne_110m_admin_0_countries_lakes.shp')
 ```r
 world_df <- fortify(world)
 gc_routes_df <- fortify(gc_routes)
-#> Error in fortify(gc_routes): object 'gc_routes' not found
 ```
 
 # Mapping
@@ -277,14 +271,15 @@ ggplot() +
         axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank())
-#> Error in fortify(data): object 'gc_routes_df' not found
 ```
+
+<img src="/figures//long-flights_first-map-1.svg" title="plot of chunk first-map" alt="plot of chunk first-map" style="display: block; margin: auto;" />
 
 Looks OK, but there's tons of room for improvement.
 
 ## Changing central meridian
 
-The default Kavrayskiy VII projection takes the Greenwich Prime Meridian as its central meridian. This is a poor choice in this case since every route has a North American City at one end, which results in many of the routes going off the edge of the map. Centering the map on the US (around 90°W) seems the best bet, but this puts the edges of the map at 90°E, right in the middle of Asia. This makes a mess of the polygons spanning the edge.
+The default Kavrayskiy VII projection takes the Greenwich Prime Meridian as its central meridian. This is a poor choice in this case since most routes have a North American city at one end, which results in many of the routes going off the edge of the map. Centering the map on the US (around 90°W) seems the best bet, but this puts the edges of the map at 90°E, right in the middle of Asia. This makes a mess of the polygons spanning the edge.
 
 
 ```r
@@ -300,8 +295,9 @@ ggplot() +
         axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank())
-#> Error in fortify(data): object 'gc_routes_df' not found
 ```
+
+<img src="/figures//long-flights_messy-boundary-1.svg" title="plot of chunk messy-boundary" alt="plot of chunk messy-boundary" style="display: block; margin: auto;" />
 
 Sorting this issue out turned out to be a much bigger challenge than I expected; it seems there's no elegant solution in R. The `nowrapRecenter()` function from the `maptools` package is meant to address this issue, but it only appears to work when the date line is the new center and it still leads to artifacts when the data are projected. Simply removing a small sliver of the polygons at what will become the edge in the new projection works, but this means removing data, it results in a world map that looks chopped off at the edges, and gives a seam at the date line.
 
@@ -465,17 +461,22 @@ routes_nodl <- gcIntermediate(flights_unique[c("lng_from", "lat_from")],
                               flights_unique[c("lng_to", "lat_to")],
                               n = 360, addStartEnd = TRUE, sp = TRUE, 
                               breakAtDateLine = FALSE)
-#> Error in .check_names_df(x, i): undefined columns: lng_from, lat_from
 routes_nodl <- SpatialLinesDataFrame(routes_nodl, 
                                      data.frame(rank = flights_unique$rank,
                                                 route = flights_unique$route,
                                                 stringsAsFactors = FALSE))
-#> Error in slot(sl, "lines"): object 'routes_nodl' not found
 row.names(routes_nodl) <- as.character(routes_nodl$rank)
-#> Error in eval(expr, envir, enclos): object 'routes_nodl' not found
-routes_kav_df <- spTransform(routes_nodl, proj) %>% 
+# Auckland-Dubai crosses edge
+crosses_edge <- (routes_nodl$route == "Auckland-Dubai")
+crosses_edge_sl <- project_recenter(routes_nodl[crosses_edge, ], proj,
+                                    union_field = "rank",
+                                    union_scale = 1e6)
+crosses_edge_sl$rank <- routes_nodl[crosses_edge, ]$rank
+crosses_edge_sl$route <- routes_nodl[crosses_edge, ]$route
+row.names(crosses_edge_sl) <- row.names(routes_nodl[crosses_edge, ])
+routes_kav_df <- spTransform(routes_nodl[!crosses_edge, ], proj) %>% 
+  rbind(crosses_edge_sl, .) %>% 
   fortify
-#> Error in spTransform(routes_nodl, proj): error in evaluating the argument 'x' in selecting a method for function 'spTransform': Error: object 'routes_nodl' not found
 # cities
 cities_wgs <- cities
 coordinates(cities_wgs) <- ~ lon + lat
@@ -484,6 +485,7 @@ cities_kav_df <- spTransform(cities_wgs, proj) %>%
   as.data.frame
 ```
 
+Plotting the newly centered data.
 
 
 ```r
@@ -503,8 +505,9 @@ ggplot() +
         axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank())
-#> Error in fortify(data): object 'routes_kav_df' not found
 ```
+
+<img src="/figures//long-flights_meridian-1.svg" title="plot of chunk meridian" alt="plot of chunk meridian" style="display: block; margin: auto;" />
 
 ## Bounding box and graticules
 
@@ -607,8 +610,9 @@ ggplot() +
             size = 3, color = "grey20", alpha = 0.9, nudge_y = 2, 
             check_overlap = TRUE) +
   theme_nothing()
-#> Error in fortify(data): object 'routes_kav_df' not found
 ```
+
+<img src="/figures//long-flights_add-bbox-1.svg" title="plot of chunk add-bbox" alt="plot of chunk add-bbox" style="display: block; margin: auto;" />
 
 Finally, after a huge amount of work, this North America centered projection is looking good.
 
@@ -620,7 +624,6 @@ Now for the finishing touches: adding nicer labels with `ggrepel`, fine tuning t
 ```r
 routes_att_df <- mutate(flights_unique, id = as.character(rank)) %>% 
   left_join(routes_kav_df, ., by = "id")
-#> Error in left_join(routes_kav_df, ., by = "id"): object 'routes_kav_df' not found
 ```
 
 Then applying a color gradient to the routes. I use the excellent `viridis` package here, which provides perceptually uniform and colour blind friendly colour gradients.
@@ -649,8 +652,8 @@ ggplot() +
                   box.padding = unit(0.1, 'lines'), force = 0.1) +
   # colour gradient applied to routes, and corresponding legend
   scale_color_viridis(name = "Top 25 Longest Non-stop Flights\n", option = "D",
-                      breaks = c(15.5, 16, 16.5, 17),
-                      labels = c("15h30m", "16h", "16h30m", "17h")) +
+                      breaks = c(16, 16.5, 17),
+                      labels = c("16h", "16h30m", "17h")) +
   guides(color = guide_colorbar(
     nbin = 256, title.position = "top", title.hjust = 0.5, 
     barwidth = unit(18, "lines"), barheight = unit(1, "lines"))) +
@@ -678,36 +681,37 @@ ggplot() +
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         plot.background = element_blank())
-#> Error in fortify(data): object 'routes_att_df' not found
 ```
 
+<a href="/figures//long-flights_final-1.png"><img src="/figures//long-flights_final-1.png" title="plot of chunk final" alt="plot of chunk final" style="display: block; margin: auto;" /></a>
 
-| rank|route                   |airline               | distance (km)| duration (hours)|
-|----:|:-----------------------|:---------------------|-------------:|----------------:|
-|    1|Dallas-Hong Kong        |American Airlines     |        13,072|            17.08|
-|    2|Dallas-Sydney           |Qantas                |        13,804|            16.92|
-|    3|Jeddah-Los Angeles      |Saudia                |        13,409|            16.92|
-|    4|Johannesburg-Atlanta    |Delta Air Lines       |        13,582|            16.67|
-|    5|Dubai-Los Angeles       |Emirates              |        13,420|            16.58|
-|    6|Abu Dhabi-Los Angeles   |Etihad Airways        |        13,502|            16.50|
-|    7|Doha-Los Angeles        |Qatar Airways         |        13,367|            16.42|
-|    8|Dubai-Houston           |Emirates              |        13,144|            16.33|
-|    9|Abu Dhabi-Dallas        |Etihad Airways        |        12,962|            16.33|
-|   10|Doha-Houston            |Qatar Airways         |        12,951|            16.33|
-|   11|Dubai-Dallas            |Emirates              |        12,940|            16.33|
-|   12|Doha-Dallas             |Qatar Airways         |        12,764|            16.33|
-|   13|Abu Dhabi-San Francisco |Etihad Airways        |        13,128|            16.25|
-|   14|New York-Hong Kong      |Cathay Pacific        |        12,983|            16.25|
-|   15|New York-Taipei         |EVA Air               |        12,566|            16.17|
-|   16|New York-Guangzhou      |China Southern        |        12,878|            16.08|
-|   17|Johannesburg-New York   |South African Airways |        12,825|            16.08|
-|   18|Mumbai-Newark           |United Airlines       |        12,565|            16.08|
-|   19|Newark-Hong Kong        |United Airlines       |        12,980|            16.00|
-|   20|Houston-Taipei          |EVA Air               |        12,776|            15.92|
-|   21|Dubai-San Francisco     |Emirates              |        13,041|            15.83|
-|   22|Boston-Hong Kong        |Cathay Pacific        |        12,827|            15.83|
-|   23|Los Angeles-Melbourne   |Qantas                |        12,748|            15.83|
-|   24|Toronto-Hong Kong       |Air Canada            |        12,569|            15.58|
-|   25|Chicago-Hong Kong       |United Airlines       |        12,542|            15.42|
+
+| rank|route                   |airline                 | distance (km)| duration (hours)|
+|----:|:-----------------------|:-----------------------|-------------:|----------------:|
+|    1|Auckland-Dubai          |Emirates                |        14,203|            17.25|
+|    2|Dallas-Hong Kong        |American Airlines       |        13,072|            17.08|
+|    3|Dallas-Sydney           |Qantas                  |        13,804|            16.92|
+|    4|Jeddah-Los Angeles      |Saudia                  |        13,409|            16.92|
+|    5|Johannesburg-Atlanta    |Delta Air Lines         |        13,582|            16.67|
+|    6|Dubai-Los Angeles       |Emirates                |        13,420|            16.58|
+|    7|Abu Dhabi-Los Angeles   |Etihad Airways          |        13,502|            16.50|
+|    8|Doha-Los Angeles        |Qatar Airways           |        13,367|            16.42|
+|    9|Dubai-Houston           |Emirates                |        13,144|            16.33|
+|   10|Abu Dhabi-Dallas        |Etihad Airways          |        12,962|            16.33|
+|   11|Doha-Houston            |Qatar Airways           |        12,951|            16.33|
+|   12|Dubai-Dallas            |Emirates                |        12,940|            16.33|
+|   13|Doha-Dallas             |Qatar Airways           |        12,764|            16.33|
+|   14|Abu Dhabi-San Francisco |Etihad Airways          |        13,128|            16.25|
+|   15|New York-Hong Kong      |Cathay Pacific          |        12,983|            16.25|
+|   16|New York-Taipei         |EVA Air                 |        12,566|            16.17|
+|   17|New York-Guangzhou      |China Southern Airlines |        12,878|            16.08|
+|   18|Johannesburg-New York   |South African Airways   |        12,825|            16.08|
+|   19|Mumbai-Newark           |United Airlines         |        12,565|            16.08|
+|   20|Newark-Hong Kong        |Cathay Pacific          |        12,980|            16.00|
+|   21|Houston-Taipei          |EVA Air                 |        12,776|            15.92|
+|   22|Dubai-San Francisco     |Emirates                |        13,041|            15.83|
+|   23|Boston-Hong Kong        |Cathay Pacific          |        12,827|            15.83|
+|   24|Los Angeles-Melbourne   |Qantas                  |        12,748|            15.83|
+|   25|Toronto-Hong Kong       |Air Canada              |        12,569|            15.58|
 
 Overall, I'm increasingly impressed with ggplot as a tool for mapping and I think the new packages [ggalt](https://github.com/hrbrmstr/ggalt) and [ggrepel](https://github.com/slowkow/ggrepel) are great additions. Unfortunately, making a map with a non-standard central meridian is a huge pain in R, but in the end I'm quite happy with the results!

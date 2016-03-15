@@ -232,7 +232,7 @@ Looks OK, but there's tons of room for improvement.
 
 ## Changing central meridian
 
-The default Kavrayskiy VII projection takes the Greenwich Prime Meridian as its central meridian. This is a poor choice in this case since every route has a North American City at one end, which results in many of the routes going off the edge of the map. Centering the map on the US (around 90°W) seems the best bet, but this puts the edges of the map at 90°E, right in the middle of Asia. This makes a mess of the polygons spanning the edge.
+The default Kavrayskiy VII projection takes the Greenwich Prime Meridian as its central meridian. This is a poor choice in this case since most routes have a North American city at one end, which results in many of the routes going off the edge of the map. Centering the map on the US (around 90°W) seems the best bet, but this puts the edges of the map at 90°E, right in the middle of Asia. This makes a mess of the polygons spanning the edge.
 
 ```{r messy-boundary, fig.width=400/96, fig.height=200/96}
 central_meridian <- -90
@@ -411,7 +411,16 @@ routes_nodl <- SpatialLinesDataFrame(routes_nodl,
                                                 route = flights_unique$route,
                                                 stringsAsFactors = FALSE))
 row.names(routes_nodl) <- as.character(routes_nodl$rank)
-routes_kav_df <- spTransform(routes_nodl, proj) %>% 
+# Auckland-Dubai crosses edge
+crosses_edge <- (routes_nodl$route == "Auckland-Dubai")
+crosses_edge_sl <- project_recenter(routes_nodl[crosses_edge, ], proj,
+                                    union_field = "rank",
+                                    union_scale = 1e6)
+crosses_edge_sl$rank <- routes_nodl[crosses_edge, ]$rank
+crosses_edge_sl$route <- routes_nodl[crosses_edge, ]$route
+row.names(crosses_edge_sl) <- row.names(routes_nodl[crosses_edge, ])
+routes_kav_df <- spTransform(routes_nodl[!crosses_edge, ], proj) %>% 
+  rbind(crosses_edge_sl, .) %>% 
   fortify
 # cities
 cities_wgs <- cities
@@ -421,6 +430,7 @@ cities_kav_df <- spTransform(cities_wgs, proj) %>%
   as.data.frame
 ```
 
+Plotting the newly centered data.
 
 ```{r meridian, fig.width=480/96, fig.height=300/96}
 world_kav_df <- project_recenter(world, proj, union_field = "sov_a3", 
@@ -576,8 +586,8 @@ ggplot() +
                   box.padding = unit(0.1, 'lines'), force = 0.1) +
   # colour gradient applied to routes, and corresponding legend
   scale_color_viridis(name = "Top 25 Longest Non-stop Flights\n", option = "D",
-                      breaks = c(15.5, 16, 16.5, 17),
-                      labels = c("15h30m", "16h", "16h30m", "17h")) +
+                      breaks = c(16, 16.5, 17),
+                      labels = c("16h", "16h30m", "17h")) +
   guides(color = guide_colorbar(
     nbin = 256, title.position = "top", title.hjust = 0.5, 
     barwidth = unit(18, "lines"), barheight = unit(1, "lines"))) +

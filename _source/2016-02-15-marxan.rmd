@@ -101,7 +101,7 @@ First I create some very simple example data: 4 species distributions, a cost la
 
 ## Conservation features
 
-I create 4 artificial 1km resolution raster layers that I'll use to represent species distributions. To work with data that are at least somewhat realistic I introduce some autocorrelation into the layers by [generating spatially autocorrelated Gaussian random fields](http://santiago.begueria.es/2010/10/generating-spatially-correlated-random-fields-with-r/). I also give 2 different characteristic scales for the species and 2 different levels of rarity.
+I create 4 artificial 1km resolution raster layers that I'll use to represent species distributions. To work with data that are at least somewhat realistic I introduce some autocorrelation into the layers by [generating spatially autocorrelated Gaussian random fields](http://santiago.begueria.es/2010/10/generating-spatially-correlated-random-fields-with-r/). I also give each of the four species different levels of rarity.
 
 ```{r features, results='hide'}
 # raster template
@@ -125,8 +125,8 @@ gaussian_field <- function(r, range, pct, beta = c(1, 0, 0)) {
 
 # conservation features
 species <- mapply(function(x, y, r) gaussian_field(r = r, range = x, pct = y, 
-                                                   beta = c(1, 0.02, 0.01)),
-                  rep(10, 4), c(0.01, 0.05, 0.1, 0.15),
+                                                   beta = c(1, 0.01, 0.01)),
+                  15, c(0.01, 0.05, 0.1, 0.15),
                   MoreArgs = list(r = r)) %>% 
   stack %>% 
   setNames(letters[1:4])
@@ -285,9 +285,8 @@ prepare_features <- function(rij, target_prop, spf = 1) {
 prepare_features(puvspr, 0.2, 10) %>% 
   kable
 # species specific targets
-ex_targets <- data_frame(feature = letters[1:4],
-                         prop = rep(c(0.50, 0.15), each = 2))
-ex_spf <- data_frame(feature = letters[1:4], spf = 1:4)
+ex_targets <- data_frame(feature = letters[1:4], prop = c(0.4, 0.3, 0.2, 0.1))
+ex_spf <- data_frame(feature = letters[1:4], spf = rep(1, 4))
 spec <- prepare_features(puvspr, ex_targets, ex_spf)
 kable(spec)
 ```
@@ -389,7 +388,7 @@ anneal <- function(x_init, objective, neighbour, n, ntemp, t_init, alpha) {
 }
 ```
 
-In this implementation, `objection` and `neighbour` are the objective function and neighbour selection function respectively. `x_init` is a vector of initial values for the decision variable, `n` is the number of iterations, `ntemp` is the number of temperature decreases, `t_init` is the starting temperature (\\( T_0 \\)), and `alpha` is the cooling factor (\\( \\alpha \\)).
+In this implementation, `objective` and `neighbour` are the objective function and neighbour selection function respectively. `x_init` is a vector of initial values for the decision variable, `n` is the number of iterations, `ntemp` is the number of temperature decreases, `t_init` is the starting temperature (\\( T_0 \\)), and `alpha` is the cooling factor (\\( \\alpha \\)).
 
 To keep this simulated annealing implementation as flexible as possible, the only arguement the objective and neighbour selection functions take is the vector of decision variables. In general, other data or parameters will be required to evaluate these functions, but this additional information must be stored within the enclosing environment of the function. This can be accomplished using **closures** functions created by other functions, which have access to all variables in the parent function. This will become more clear when I define these closure below. The [Advanced R](http://adv-r.had.co.nz/) book by Hadley Wickham has great coverage of this topic, particularly the sections on [function environments](http://adv-r.had.co.nz/Environments.html#function-envs) and [closures](http://adv-r.had.co.nz/Functional-programming.html#closures)
 
@@ -448,7 +447,7 @@ b \sum_{i=1}^{n} \sum_{j=1}^{n}x_i (1-x_j)B_{ij}
 \geq T_j \space \forall \space j
 $$
 
-The two terms in the objective function correspond to minimizing the cost and external boundary of the reserve network, respectively. Rather than strictly enforcing the representation constraint, Marxan incorporates the constraint into the objective function as a **shortfall penalty**. This approach is more efficient because the constraint does not have to be enforced in each simulated annealing iteration. Furthermore, it allows more flexibility within simulated annealing, by temporarily allowing solutions that don't meet targets. The unconstrained objective function that Marxan actually optimizes is:
+The two terms in the objective function correspond to minimizing the cost and external boundary of the reserve network, respectively. Rather than strictly enforcing the representation constraint, Marxan incorporates the constraint into the objective function as a **shortfall penalty**. This approach is more efficient because the constraint does not have to be enforced in each simulated annealing iteration. Furthermore, it allows more flexibility within simulated annealing, by temporarily allowing solutions that don't meet targets. The unconstrained objective function that Marxan actually optimizes is referred to as the **score** as is given by:
 
 $$
 f(\vec{x}) = \sum_{i=1}^{n}x_i c_i + 
@@ -466,6 +465,10 @@ Marxan uses a simple greedy agorithm for estimating \\( \\gamma_j \\). For each 
 The approach described in the previous paragraph is what the [Marxan User's Manual](http://www.uq.edu.au/marxan/docs/Marxan_User_Manual_2008.pdf) *says* Marxan is doing; however, looking at the [source code](https://github.com/mattwatts/marxan244), there's an additional wrinkle. Rather that just adding planning units in order of efficiency, Marxan will also look to see if, at any point, the addition of a single planning unit will result in the target being met. If so, and the cost of this planning unit is lower than the cost of the most efficient unit, than this planning unit is chosen instead of the most efficient one.
 
 ```{r base-penalty}
+pu <- results$pu
+rij <- puvspr
+features <- results$features
+blm = 10
 base_penalty <- function(pu, rij, features, blm) {
   # calculate boundary of each planning unit
   pu$boundary <- gLength(pu, byid = TRUE)
@@ -476,14 +479,17 @@ base_penalty <- function(pu, rij, features, blm) {
     filter(amount != 0, status != 3) %>% 
     mutate(efficiency = amount / total_cost)
   # start by including free planning units and those with status = 2
+  # Marxan adds cost of all status = 2 units to penalty regardless of whether
+  # or not species occurs in unit
+  fixed_cost <- subset(pu, status == 2) %>% 
+    {sum(.$cost + blm * .$boundary)}
   p <- filter(remaining, status == 2 | total_cost == 0) %>% 
     group_by(feature) %>% 
-    summarize(penalty = sum(total_cost), 
-              cumulative_amount = sum(amount)) %>% 
+    summarize(cumulative_amount = sum(amount)) %>% 
     right_join(dplyr::select(features, feature, target), by = "feature") %>% 
     mutate(shortfall = (target - cumulative_amount),
            shortfall = ifelse(is.na(shortfall), target, shortfall),
-           penalty = ifelse(is.na(penalty), 0, penalty)) %>% 
+           penalty = fixed_cost) %>% 
     dplyr::select(feature, penalty, shortfall)
   remaining <- filter(remaining, status != 2, total_cost != 0)
   for (f in p$feature) {
@@ -491,7 +497,9 @@ base_penalty <- function(pu, rij, features, blm) {
     r <- filter(remaining, feature == f) %>% 
       arrange(desc(efficiency))
     while(p$shortfall[p$feature == f] > 0 && nrow(r) > 0) {
+      # most efficient planning unit
       best <- head(r, 1)
+      # cheapest planning unit that meets target
       meets_target <- r %>% 
         filter(amount >= p$shortfall[p$feature == f],
                total_cost < best$cost) %>% 
@@ -502,6 +510,8 @@ base_penalty <- function(pu, rij, features, blm) {
       }
       p$shortfall[p$feature == f] <- p$shortfall[p$feature == f] - best$amount
       p$penalty[p$feature == f] <- p$penalty[p$feature == f] + best$cost
+      print(best)
+      r <- filter(r, pu != best$pu)
     }
   }
   dplyr::select(p, feature, penalty)
@@ -519,7 +529,7 @@ generate_objective <- function(pu, rij, features, boundary, blm = 0) {
   # calculate base shortfall penalties
   features <- base_penalty(pu = pu, rij = rij, features = features, blm = blm) %>% 
     inner_join(features, by = "feature")
-  function(x) {
+  function(x, breakdown = FALSE) {
     if (all(!x)) {
       cost <- 0
       boundary <- 0
@@ -535,7 +545,7 @@ generate_objective <- function(pu, rij, features, boundary, blm = 0) {
         boundary_cost <- filter(boundary, 
             (id1 %in% pu_selected$id & !id2 %in% pu_selected$id) |
             (id2 %in% pu_selected$id & !id1 %in% pu_selected$id)) %>% 
-          {sum(.$boundary)}
+          {blm * sum(.$boundary)}
       }
       # shortfall penalty
       shortfall <- data_frame(pu = pu_selected$id) %>% 
@@ -546,11 +556,19 @@ generate_objective <- function(pu, rij, features, boundary, blm = 0) {
         mutate(shortfall = spf * penalty * max(1 - amount / target, 0)) %>% 
         {sum(.$shortfall)}
     }
-    return(cost + (blm * boundary_cost) + shortfall)
+    score <- cost + boundary_cost + shortfall
+    if (breakdown) {
+      return(data.frame(score = score, cost = cost,
+                        boundary = boundary_cost, 
+                        shortfall = shortfall))
+    } else {
+      return(score)
+    }
   }
 }
-ex_objective <- generate_objective(pu, puvspr, spec, boundary, blm = 0)
+ex_objective <- generate_objective(pu, puvspr, spec, boundary, blm = 1)
 ex_objective(init_res(pu, 0.5))
+ex_objective(init_res(pu, 0.5), breakdown = TRUE)
 ```
 
 ## Adaptive annealing
@@ -602,20 +620,25 @@ marxan_emulator <- function(pu, feature_stack, target_prop,
   temp <- adaptive_schedule(max(1000, n / 100), objective, nsf,
                                 x_init = init_res(pu, prop = init_prop))
   alpha <- unname(exp(log(temp["t_final"] / temp["t_initial"]) / ntemp))
-  results <- data.frame(run = integer(), pu = integer(), x = logical())
+  s <- data.frame(run = integer(), pu = integer(), x = logical())
   # run simulated annealing for multiple repetitions to get a suite of
   # candidate reserve networks to analyze
   for (i in 1:nrep) {
     x_result <- anneal(x_init = init_res(pu, prop = init_prop),
            objective = objective, neighbour = nsf, n = n, 
            ntemp = ntemp, t_init = temp["t_initial"], alpha = alpha)
-    results <- rbind(results, data.frame(run = i, pu = pu$id, x = x_result))
+    s <- rbind(s, data.frame(run = i, pu = pu$id, x = x_result))
   }
+  selection_summary <- s %>% 
+    arrange(run, pu) %>% 
+    group_by(run) %>% 
+    do(objective(.$x, breakdown = TRUE))
   list(pu = pu, features = features, boundary = boundary,
        objective = objective, nsf = nsf,
        params = c(temp, alpha = alpha, nrep = nrep, n = n, ntemp = ntemp),
        blm = blm,
-       selections = results)
+       selections = s,
+       summary = selection_summary)
 }
 ```
 
@@ -625,10 +648,10 @@ Now that I've created an R function that emulates Marxan, it's time to put it to
 
 ## Preparations
 
-In generating the species distributions at the start of this tutorial, I created two levels of rarity: species cover 10% or 50% of the study area. Working under the assumption that rare species need more of their range protected, I set percent representation targets for species in the different rarity categories at 25%, 15%, and 10%, respectively.
+In generating the species distributions at the start of this tutorial, I created four levels of rarity: species cover 1%, 5%, 10%, or 15% of the study area. Working under the assumption that rare species need more of their range protected, I set percent representation targets for species in the different rarity categories at 40%, 30%, 20%, and 10%, respectively.
 
 ```{r set-targets}
-target_prop <- data_frame(feature = letters[1:4], prop = c(0.5, 0.4, 0.3, 0.2))
+target_prop <- data_frame(feature = letters[1:4], prop = c(0.4, 0.3, 0.2, 0.1))
 kable(target_prop)
 ```
 
@@ -643,25 +666,35 @@ spfs <- data_frame(feature = letters[1:4], spf = c(1, 1, 1, 1))
 ```{r}
 system.time(
   results <- marxan_emulator(pu, species, target_prop, spfs,
-                             blm = 1, nrep = 1, n = 1000)
+                             blm = 0, nrep = 1, n = 100)
 )
 ```
 
 ## Marxan
+
 I start with a normal Marxan run, which I will eventually compare to my R emulation. The R package `marxan` makes running Marxan from within R a breeze
 
 ```{r mardan-data}
 mr <- marxan(pu, species,
              targets =  results$features$target,
-             spf = c(7, 7, 12, 17),
-             BLM = 20, PROP = 0, VERBOSITY = 1L,
-             NUMREPS = 100L, NUMITNS = 100000L, NUMTEMP = 10000L)
+             spf = results$features$spf, #c(7, 7, 12, 17),
+             BLM = 10, PROP = 0, VERBOSITY = 3L,
+             NUMREPS = 10L, NUMITNS = 100000L, NUMTEMP = 10000L)
+mr@results@summary[mr@results@best,]
 mr@results@mpm
 plot(mr, 1)
 plot(mr)
 mr@results@summary %>% View
 hist(mr@results@summary$Cost)
 
+mu <- MarxanUnsolved(mr@opts, mr@data)
+dir <- "~/Desktop/marxan/"
+write.MarxanUnsolved(mu, dir)
+file.copy(options()$marxanExecutablePath,
+          file.path(dir,basename(options()$marxanExecutablePath)))
+paste0('"',file.path(dir, basename(options()$marxanExecutablePath)),
+    '" "',file.path(dir, 'input.dat'),'"')
+system()
 
 blm_runs <- geom_ramp(1, 100, n = 8, inc_zero = T) %>% 
     calibrate_blm(mr, blm = ., spf = c(7, 7, 10, 10),
@@ -698,6 +731,35 @@ blm_runs %>%
 
 
 ```
+
+
+```{r}
+base_penalty(results$pu, puvspr, results$features, blm = 10)
+
+mr@results@summary[mr@results@best,]$Connectivity_Total
+sum(results$boundary$boundary)
+
+comp <- mr@results@selections[mr@results@best,] %>% 
+  results$objective(breakdown = TRUE)
+
+comp$cost
+mr@results@summary[mr@results@best,]$Cost
+
+mr@results@summary[mr@results@best,]
+
+
+1 - mr@results@occheld[mr@results@best,] / mr@data@species$target
+sum((1 - mr@results@mpm[mr@results@best,]) * c(9586.12, 12481.3, 12301.5, 9908.35)) / 2
+
+mr@results@occheld[mr@results@best,]
+
+
+sf_pen <- c(9586.12, 12481.3, 12301.5, 9908.35)
+sum((1 - mr@results@mpm[mr@results@best,]) * c(9586.12, 12481.3, 12301.5, 9908.35))
+mr@results@mpm[mr@results@best,]
+16349.02 - 10476.44 - 266.7734
+```
+
 
 ```{r}
 calibrate_blm <- function(x, blm, spf, n_reps, verbose = F) {

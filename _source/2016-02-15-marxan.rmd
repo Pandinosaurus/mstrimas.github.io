@@ -238,7 +238,8 @@ The spatial distribution of features over the landscape typically comes in the f
 summarize_features <- function(features, pu) {
   raster::extract(features, pu, fun = sum, na.rm = TRUE, sp = FALSE) %>% 
     data.frame(pu = pu$id, .) %>% 
-    gather(feature, amount, -pu)
+    gather(feature, amount, -pu) %>% 
+    filter(amount > 0)
 }
 puvspr <- summarize_features(species, pu)
 head(puvspr, 10) %>% 
@@ -464,11 +465,7 @@ Marxan uses a simple greedy agorithm for estimating \\( \\gamma_j \\). For each 
 
 The approach described in the previous paragraph is what the [Marxan User's Manual](http://www.uq.edu.au/marxan/docs/Marxan_User_Manual_2008.pdf) *says* Marxan is doing; however, looking at the [source code](https://github.com/mattwatts/marxan244), there's an additional wrinkle. Rather that just adding planning units in order of efficiency, Marxan will also look to see if, at any point, the addition of a single planning unit will result in the target being met. If so, and the cost of this planning unit is lower than the cost of the most efficient unit, than this planning unit is chosen instead of the most efficient one.
 
-```{r base-penalty}
-pu <- results$pu
-rij <- puvspr
-features <- results$features
-blm = 10
+```{r base-penalty-optim}
 base_penalty <- function(pu, rij, features, blm) {
   # calculate boundary of each planning unit
   pu$boundary <- gLength(pu, byid = TRUE)
@@ -476,20 +473,17 @@ base_penalty <- function(pu, rij, features, blm) {
   remaining <- as.data.frame(pu) %>% 
     mutate(total_cost = (cost + blm * boundary)) %>% 
     inner_join(rij, ., by = c("pu" = "id")) %>% 
-    filter(amount != 0, status != 3) %>% 
+    filter(amount > 0, status != 3) %>% 
     mutate(efficiency = amount / total_cost)
   # start by including free planning units and those with status = 2
-  # Marxan adds cost of all status = 2 units to penalty regardless of whether
-  # or not species occurs in unit
-  fixed_cost <- subset(pu, status == 2) %>% 
-    {sum(.$cost + blm * .$boundary)}
   p <- filter(remaining, status == 2 | total_cost == 0) %>% 
     group_by(feature) %>% 
-    summarize(cumulative_amount = sum(amount)) %>% 
+    summarize(cumulative_amount = sum(amount),
+              penalty = sum(total_cost)) %>% 
     right_join(dplyr::select(features, feature, target), by = "feature") %>% 
     mutate(shortfall = (target - cumulative_amount),
            shortfall = ifelse(is.na(shortfall), target, shortfall),
-           penalty = fixed_cost) %>% 
+           penalty = ifelse(is.na(penalty), 0, penalty)) %>% 
     dplyr::select(feature, penalty, shortfall)
   remaining <- filter(remaining, status != 2, total_cost != 0)
   for (f in p$feature) {
@@ -502,23 +496,77 @@ base_penalty <- function(pu, rij, features, blm) {
       # cheapest planning unit that meets target
       meets_target <- r %>% 
         filter(amount >= p$shortfall[p$feature == f],
-               total_cost < best$cost) %>% 
+               total_cost < best$total_cost) %>% 
         arrange(total_cost) %>% 
         head(1)
       if (nrow(meets_target) > 0) {
         best <- meets_target
       }
       p$shortfall[p$feature == f] <- p$shortfall[p$feature == f] - best$amount
-      p$penalty[p$feature == f] <- p$penalty[p$feature == f] + best$cost
-      print(best)
+      p$penalty[p$feature == f] <- p$penalty[p$feature == f] + best$total_cost
       r <- filter(r, pu != best$pu)
     }
   }
   dplyr::select(p, feature, penalty)
 }
-base_penalty(pu, puvspr, spec, blm = 0) %>% 
+base_penalty(pu, puvspr, spec, blm = 10) %>% 
   kable(digits = 1)
 ```
+
+```{r base-penalty}
+# base_penalty <- function(pu, rij, features, blm) {
+#   # calculate boundary of each planning unit
+#   pu$boundary <- gLength(pu, byid = TRUE)
+#   # calculate efficiency = representation / cost for each planning unit
+#   remaining <- as.data.frame(pu) %>% 
+#     mutate(total_cost = (cost + blm * boundary)) %>% 
+#     inner_join(rij, ., by = c("pu" = "id")) %>% 
+#     filter(amount != 0, status != 3) %>% 
+#     mutate(efficiency = amount / total_cost)
+#   # start by including free planning units and those with status = 2
+#   # Marxan adds cost of all status = 2 units to penalty regardless of whether
+#   # or not species occurs in unit
+#   fixed_cost <- subset(pu, status == 2) %>% 
+#     {sum(.$cost + blm * .$boundary)}
+#   p <- filter(remaining, status == 2 | total_cost == 0) %>% 
+#     group_by(feature) %>% 
+#     summarize(cumulative_amount = sum(amount)) %>% 
+#     right_join(dplyr::select(features, feature, target), by = "feature") %>% 
+#     mutate(shortfall = (target - cumulative_amount),
+#            shortfall = ifelse(is.na(shortfall), target, shortfall),
+#            penalty = fixed_cost) %>% 
+#     dplyr::select(feature, penalty, shortfall)
+#   remaining <- filter(remaining, status != 2, total_cost != 0)
+#   for (f in p$feature) {
+#     # find and add next best planning unit
+#     r <- filter(remaining, feature == f) %>% 
+#       arrange(desc(efficiency))
+#     while(p$shortfall[p$feature == f] > 0 && nrow(r) > 0) {
+#       # most efficient planning unit
+#       best <- head(r, 1)
+#       # cheapest planning unit that meets target
+#       meets_target <- r %>% 
+#         filter(amount >= p$shortfall[p$feature == f],
+#                total_cost < best$total_cost) %>% 
+#         arrange(total_cost) %>% 
+#         head(1)
+#       if (nrow(meets_target) > 0) {
+#         best <- meets_target
+#       }
+#       p$shortfall[p$feature == f] <- p$shortfall[p$feature == f] - best$amount
+#       p$penalty[p$feature == f] <- p$penalty[p$feature == f] + best$total_cost
+#       r <- filter(r, pu != best$pu)
+#     }
+#   }
+#   dplyr::select(p, feature, penalty)
+# }
+# base_penalty(pu, puvspr, spec, blm = 10) %>% 
+#   kable(digits = 1)
+```
+
+Getting the base penalty exactly right was fairly challenging, since what Marxan actually does is more complicated than what is outlined in the documentation. I modified the Marxan [source code](https://github.com/mattwatts/marxan244) to output the set of planning units that it chooses as the cheapest way to meet each single-species target. Then I tweaked and debugged my function until it found the same set of reserves. Along the way I found what I believe is a [minor bug](https://github.com/mattwatts/marxan244/issues/2) in Marxan's source code, which causes the final planning unit added for each species to be incorrect. This results in a slightly higher base penalty than intended. Although I believe this has no impact on the Marxan ability to find optimal reserve configurations, I've corrected the bug in the above function, which means there will be slight differences in the objective function values between my R emulator and Marxan.
+
+Also, Marxan has two different functions for calculating the base penalty: `CalcPenalties` and `CalcPenaltiesOptimise`. The former is used by default and the latter is used only if the file `puvspr_sporder.dat` is provided as an input. This additional file contains the same information as `puvspr.dat` (i.e. representation level of each species in each planning unit), but it is ordered by species ID as opposed to planning unit ID. Apparently, `CalcPenaltiesOptimise` is much [faster for large problems](http://lists.science.uq.edu.au/pipermail/marxan/2008-March/000298.html), but the catch is they dont' give the same penalties except in the case where no reserves are locked in. Since the R package `marxan` always provides a `puvspr_sporder.dat` file and therefore Marxan always uses `CalcPenaltiesOptimise` when being run through R, I've written the above function to match `CalcPenaltiesOptimise`, except for the issue with the final planning unit noted above.
 
 ### Objective function implementation
 
@@ -552,9 +600,10 @@ generate_objective <- function(pu, rij, features, boundary, blm = 0) {
         inner_join(rij, by = "pu") %>% 
         group_by(feature) %>% 
         summarize(amount = sum(amount)) %>% 
-        left_join(features, by = "feature") %>% 
-        mutate(shortfall = spf * penalty * max(1 - amount / target, 0)) %>% 
-        {sum(.$shortfall)}
+        right_join(features, by = "feature") %>% 
+        mutate(amount = ifelse(is.na(amount), 0, amount),
+               shortfall = spf * penalty * pmax(1 - amount / target, 0)) %>% 
+               {sum(.$shortfall)}
     }
     score <- cost + boundary_cost + shortfall
     if (breakdown) {
@@ -591,11 +640,7 @@ adaptive_schedule <- function(n, objective, nsf, x_init) {
   delta <- delta[delta > epsilon]
   c(t_initial = max(delta), t_final = 0.1 * min(delta))
 }
-# Rprof("adaptive.out")
-# adaptive_schedule(1000, ex_objective, ex_nsf, init_res(pu, 0.5))
-# Rprof(NULL)
-# summaryRprof("adaptive.out")
-# system.time(adaptive_schedule(1000, ex_objective, ex_nsf, init_res(pu, 0.5)))
+adaptive_schedule(1000, ex_objective, ex_nsf, init_res(pu, 0.5))
 ```
 
 ## Marxan!
@@ -624,6 +669,7 @@ marxan_emulator <- function(pu, feature_stack, target_prop,
   # run simulated annealing for multiple repetitions to get a suite of
   # candidate reserve networks to analyze
   for (i in 1:nrep) {
+    print(paste0("Annealing repetition ", i))
     x_result <- anneal(x_init = init_res(pu, prop = init_prop),
            objective = objective, neighbour = nsf, n = n, 
            ntemp = ntemp, t_init = temp["t_initial"], alpha = alpha)
@@ -658,189 +704,114 @@ kable(target_prop)
 The [Marxan Good Practices Handbook](http://www.uq.edu.au/marxan/docs/Marxan%20Good%20Practices%20Handbook%20v2%202010.pdf) outlines an iterative approach for determining the optimal Species Penalty Factors. Essentially, one runs Marxan many times for different values of the SPF to find the minimum value for each species below which targets stop being met. For this tutorial, I won't delve into calibration of the SPF, rather I've done this outside the tutorial and enter some sensible values here.
 
 ```{r set-spfs}
-spfs <- data_frame(feature = letters[1:4], spf = c(1, 1, 1, 1))
+spfs <- data_frame(feature = letters[1:4], spf = c(10, 25, 15, 15))
+```
+
+The optimal Boundary Length Modifier can be found in a similar iterative fashion. Again, this tutorial isn't about Marxan best practices, so I won't delve into calibrating the BLM.
+
+```{r set-glm}
+best_blm <- 10
 ```
 
 ## Emulator
 
-```{r}
-system.time(
-  results <- marxan_emulator(pu, species, target_prop, spfs,
-                             blm = 0, nrep = 1, n = 100)
-)
+I run the Marxan emulator for 100 simulated annealing repetitions with 10,000 iterations each. 
+
+```{r run-emulator}
+results <- marxan_emulator(pu, species, target_prop, spfs,
+                           blm = best_blm, nrep = 1, n = 10000)
+```
+
+Now I map the best reserve, i.e. the one with the lowest objective function:
+
+```{r map-emulator}
+map_selection <- function(x, pu) {
+  status_names <- c("Excluded", "Selected", "Locked in", "Locked out")
+  status_pal <- c("grey40", "#4DAF4A", "#377EB8", "black")
+  pu$selected <- ifelse(pu$status %in% 2:3,
+                        pu$status,
+                        as.integer(x)) %>% 
+    factor(levels = 0:3, labels = status_names)
+  spplot(pu, "selected", col = "grey20", col.regions = status_pal, 
+         colorkey = list(space = "bottom", height = 0.5)) %>% 
+    print
+}
+best <- which.max(results$summary$cost)
+x <- filter(results$selections, run == best) %>% 
+  {.$x} %>% 
+  map_selection(results$pu)
+```
+
+And the selection frequency, which is the frequency with which each planning unit was selection and gives a sense for the imporantance of each planning unit.
+
+```{r map-emulator-sf}
+map_frequency <- function(selections, pu) {
+  pu <- group_by(selections, pu) %>% 
+    summarize(frequency = sum(x) / n()) %>% 
+    rename(id = pu) %>% 
+    merge(pu, ., by = "id")
+  pu$frequency[pu$status == 3] <- NA
+  spplot(pu, "frequency", main = "Selection Frequency",
+         col.regions = viridis(100),
+         at = seq(0, 1.01, len = 100))
+}
+map_frequency(results$selections, pu)
 ```
 
 ## Marxan
 
-I start with a normal Marxan run, which I will eventually compare to my R emulation. The R package `marxan` makes running Marxan from within R a breeze
+Now I perform a normal Marxan run, with identical paramters, which I will compare to my R emulation. The R package `marxan` makes running Marxan from within R a breeze and has some great vignettes: `browseVignettes("marxan")`.
 
 ```{r mardan-data}
 mr <- marxan(pu, species,
-             targets =  results$features$target,
-             spf = results$features$spf, #c(7, 7, 12, 17),
-             BLM = 10, PROP = 0, VERBOSITY = 3L,
-             NUMREPS = 10L, NUMITNS = 100000L, NUMTEMP = 10000L)
-mr@results@summary[mr@results@best,]
-mr@results@mpm
-plot(mr, 1)
-plot(mr)
-mr@results@summary %>% View
-hist(mr@results@summary$Cost)
-
-mu <- MarxanUnsolved(mr@opts, mr@data)
-dir <- "~/Desktop/marxan/"
-write.MarxanUnsolved(mu, dir)
-file.copy(options()$marxanExecutablePath,
-          file.path(dir,basename(options()$marxanExecutablePath)))
-paste0('"',file.path(dir, basename(options()$marxanExecutablePath)),
-    '" "',file.path(dir, 'input.dat'),'"')
-system()
-
-blm_runs <- geom_ramp(1, 100, n = 8, inc_zero = T) %>% 
-    calibrate_blm(mr, blm = ., spf = c(7, 7, 10, 10),
-                  verbose = F, n_reps = 100)
-
-library(ggplot2)
-library(scales)
-blm_runs %>% 
-  group_by(blm_label) %>% 
-  summarize_each(funs(mean), cost, boundary_length) %>% 
-  ggplot(aes(x = boundary_length, y = cost)) + 
-    geom_point(aes(color = blm_label, size = 3)) +
-    #geom_line() +
-    scale_color_brewer(name = 'BLM', palette = 'Set1') +
-    scale_x_continuous(labels = comma) +
-    guides(size = FALSE) +
-    labs(x = 'Boundary Length', y = 'Cost') +
-    theme_bw()
-
-data(taspu, tasinvis)
-mr_tas <- marxan(taspu, tasinvis, targets="20%", spf=100, NUMREPS=100L,
-       NCORES=2L, BLM=0.0001, lengthFactor=1e-5)
-
-blm_runs %>% 
-  group_by(blm_label) %>% 
-  mutate(cost_prop_best = 100 * cost / min(cost),
-         n_feasible = sum(mpm > 0.95)) %>% 
-  ggplot(aes(x = cost_prop_best, color = blm_label)) +
-    geom_step(aes(n=n_feasible, y = (..y.. * n)), stat="ecdf") +
-    labs(x = 'Cost (% of best solution)',
-         y = 'Cumulative # Solution Meeting 95% of Targets') +
-    scale_color_brewer(name = 'BLM', palette = 'Set1') + 
-    theme_bw()
-
-
+             targets = results$features$target,
+             spf = results$features$spf,
+             BLM = 10, PROP = 0, VERBOSITY = 5L,
+             NUMREPS = 10L, NUMITNS = 10000L, NUMTEMP = 1000L)
 ```
+
+Again, I map the best reserve and the selection frequency.
+
+# Comparison
+
+Finally, I compare the results to demonstrate that the emulator I've created functions essentially identically to Marxan. I'll compare the two methods with respect to several different components
+
+## Adaptive annealing
+
 
 
 ```{r}
-base_penalty(results$pu, puvspr, results$features, blm = 10)
 
 mr@results@summary[mr@results@best,]$Connectivity_Total
 sum(results$boundary$boundary)
 
 comp <- mr@results@selections[mr@results@best,] %>% 
   results$objective(breakdown = TRUE)
-
+comp
+mr@results@summary[mr@results@best,]
 comp$cost
 mr@results@summary[mr@results@best,]$Cost
 
-mr@results@summary[mr@results@best,]
+comp$shortfall
+mutate(mr@results@summary, zero = Score - Cost - 10 * Connectivity - Penalty)
+         
 
+mr@results@summary[mr@results@best,]$Penalty
+sf_pen <- rev(c(5783.12, 7020.91, 6767.03, 5813.69))
+bp <- base_penalty(pu, puvspr, results$features, blm = 10)
+blank <- which(init_res(pu, 0))
+filter(puvspr, pu %in% blank) %>% 
+  group_by(feature) %>% 
+  summarise(amount = sum(amount)) %>% 
+  right_join(results$features, by = "feature") %>% 
+  mutate(amount = ifelse(is.na(amount), 0, amount),
+         mpm = (1 - amount / target)) %>% 
+  inner_join(bp, by = "feature") %>% 
+  mutate(sf_pen = mpm * spf * penalty) %>% 
+  summarize(sf_pen = sum(sf_pen))
+sum((1 - mr@results@mpm[mr@results@best,]) * bp$penalty)
+sum((1 - mr@results@mpm[mr@results@best,]) * sf_pen)
 
-1 - mr@results@occheld[mr@results@best,] / mr@data@species$target
-sum((1 - mr@results@mpm[mr@results@best,]) * c(9586.12, 12481.3, 12301.5, 9908.35)) / 2
-
-mr@results@occheld[mr@results@best,]
-
-
-sf_pen <- c(9586.12, 12481.3, 12301.5, 9908.35)
-sum((1 - mr@results@mpm[mr@results@best,]) * c(9586.12, 12481.3, 12301.5, 9908.35))
-mr@results@mpm[mr@results@best,]
-16349.02 - 10476.44 - 266.7734
+results$objective(init_res(pu, prop = 0))
+sum(ofun(init_res(pu, prop = 0))$shortfall)
 ```
-
-
-```{r}
-calibrate_blm <- function(x, blm, spf, n_reps, verbose = F) {
-  # Test a range of Boundary Length Modifiers (BLMs) to find optimal value
-  #
-  # Args:
-  #   x: MarxanUnsolved or MarxanSolved object
-  #   blm: numeric; vector of BLMs to test
-  #   spf: numeric; spf to be held fixed while spf is varied, if no arguement provided, 
-  #           will default to values from x
-  #   n_reps: integer; number of annealing repititions, if no arguement provided, 
-  #           will default to values from x
-  #   verbose: logical; whether to print progress
-  #
-  # Returns:
-  #   data frame
-  
-  if (!missing(spf)) {
-    if (length(spf) == length(x@data@species$spf)) {
-      x@data@species$spf <- spf
-    } else {
-      x@data@species$spf <- rep(spf, length(x@data@species$spf))
-    }
-  }
-  
-  if (!missing(n_reps)) {
-    x@opts@NUMREPS <- as.integer(n_reps)
-  }
-  
-  if (verbose) {
-    x@opts@VERBOSITY <- 2L
-  } else {
-    x@opts@VERBOSITY <- 0L
-  }
-  
-  run_marxan <- function(b, x) {
-    if (verbose) {
-      print(paste0('BLM = ', b))
-    }
-    x@opts@BLM <- b
-    soln <- solve(x, force_reset = T)
-    soln@results@summary %>% 
-      dplyr::select(run_num = Run_Number,
-             score = Score,
-             cost = Cost,
-             # obj func penalty for not meeting targets
-             penalty = Penalty,
-             n_pu = Planning_Units,
-             boundary_length = Connectivity,
-             # sum of gaps between actual representation levels and targets
-             shortfall = Shortfall,
-             # number of features for which a target was not met
-             n_missed = Missing_Values,
-             # lowest proportional target achievement among features
-             mpm = MPM)
-  }
-  results <- data.frame(blm = blm) %>% 
-    group_by(blm) %>% 
-    do(run_marxan(.$blm, x = x)) %>% 
-    ungroup
-  if (max(results$blm) < 9999 && min(results$blm > 0.1)) {
-    results$blm_label <- factor(round(results$blm, 2))
-  } else {
-    results$blm_label <- factor(format(results$blm, scientific = T, digits = 3))
-  }
-  results <- mutate(results, blm_label = reorder(blm_label, blm, min))
-  return(results)
-}
-geom_ramp <- function(mn, mx, n = 10, inc_zero = F) {
-  if (mn <= 0 | mn >= mx) {
-    stop('must have 0 < mn < mx for exponential ramp.')
-  }
-  if (inc_zero) {
-    n = n - 1
-  }
-  delta <- log(mx / mn) / (n - 1)
-  ramp <- mn * exp(delta * (1:n - 1))
-  if (inc_zero) {
-    ramp <- c(0, ramp)
-  }
-  return(ramp)
-}
-```
-

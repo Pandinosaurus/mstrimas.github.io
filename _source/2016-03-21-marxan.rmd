@@ -738,10 +738,10 @@ Now I perform a normal Marxan run, with identical parameters, which I will compa
 
 ```{r marxan-data, results="hide"}
 res_marxan <- marxan(pu, species,
-             targets = res_emulator$features$target,
-             spf = res_emulator$features$spf,
-             BLM = 10, PROP = 0, VERBOSITY = 3L,
-             NUMREPS = 100L, NUMITNS = 10000L, NUMTEMP = 1000L)
+                     targets = res_emulator$features$target,
+                     spf = res_emulator$features$spf,
+                     BLM = 10, PROP = 0, VERBOSITY = 3L,
+                     NUMREPS = 100L, NUMITNS = 10000L, NUMTEMP = 1000L)
 ```
 
 Again, I map the best reserve and the selection frequency.
@@ -883,6 +883,19 @@ ggplot(freq_compare, aes(freq_marxan, freq_emulator)) +
             family = "Helvetica Neue Light") +
   labs(x = "Marxan", y = "Emulator", title = "Selection Frequency") +
   theme(text=element_text(family = "Helvetica Neue Light"))
+```
+
+```{r side-by-side, fig.width=700/96, fig.height=350/96}
+rename(freq_compare, id = pu, Marxan = freq_marxan, Emulator = freq_emulator) %>% 
+  merge(pu, ., by = "id") %>% 
+  spplot(c("Marxan", "Emulator"),
+         main = "Selection Frequency", col.regions = viridis(100),
+         at = seq(0, 1.01, len = 100),
+         colorkey = list(space = "bottom", height = 1),
+         par.strip.text = list(col = "white"),
+         par.settings = list(
+           strip.background = list(col = "grey40"))
+         )
 ```
 
 Looks good, we've got a pretty close match here.

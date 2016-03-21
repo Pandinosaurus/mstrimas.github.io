@@ -48,7 +48,7 @@ hook_plot_md_link <- function(x, options) {
 }
 
 # From: http://chepec.se/2014/07/16/knitr-jekyll.html
-knit_post <- function(source_rmd = '', overwrite = FALSE, clean = FALSE) {
+knit_post <- function(source_rmd = '', img.dev = "svg", overwrite = FALSE, clean = FALSE) {
   # local directory of jekyll site
   site_path <- '/Users/matt/Documents/mstrimas.github.com/'
   # rmd directory (relative to base)
@@ -71,7 +71,7 @@ knit_post <- function(source_rmd = '', overwrite = FALSE, clean = FALSE) {
     dpi=96,
     fig.width=480/96,
     fig.height=480/96,
-    dev='svg',
+    dev=img.dev,
     comment='#>',
     tidy=FALSE,
     cache=FALSE,

@@ -1,0 +1,564 @@
+---
+layout: post
+title: "Integer Programming for Systematic Conservation Planning"
+published: true
+excerpt: >
+  Solving systematic conservation planning problems using Integer Linear Programming
+  and Ineger Quadratic Programming techniques. Demontration of using the R
+  interface to the Gurobi Optimizer to solve Marxan-like reserve design problems.
+category: r
+tags: r gurobi optimization marxan
+---
+
+```{r echo = F, include = F, eval = F}
+setwd("_source/")
+```
+
+```{r setup, echo = F}
+knitr::opts_chunk$set(dev = "png")
+```
+
+**systematic conservation planning** offers a structured, and scientifically defensible, approach to designing new protected area networks that efficiently meet conservation objectives, while minimizing socioeconomic cost. This approach can be used to determine the optimal locations to invest limited conservation funds in the creation of new reserves. In a [previous post](http://strimas.com/r/marxan/), I provided an introduction to systematic conservation planning and discussed how Marxan solves the reserve design problem using a stochastic optimization heuristic known as **simulated annealing**.
+
+Simulated annealing is widely used for solving optimization problems in conservation planning; however, a [recent paper](http://www.sciencedirect.com/science/article/pii/S0304380016300217)<sup id="a1">[1](#f1)</sup> by the team behind Marxan describes an alternative approach that draws on the techniques of **integer programming** to solve reserve design problems. In particular, this method uses [**Gurobi**](http://www.gurobi.com/), a powerful commericial optimization software, to determine the optimal location for new reserves. The authors kindly included their code in the supplementary materials of their paper and, in this post, I'll work through their code to explore this approach in detail.
+
+# Required packages
+
+```{r}
+library(dplyr)
+library(assertthat)
+library(sp)
+library(raster)
+library(rgeos)
+library(rasterVis)
+library(viridis)
+library(gstat)
+library(marxan)
+library(gurobi) # installation instructions below
+set.seed(1)
+```
+
+# Background
+
+If you're unfamiliar with systematic conservation planning in general, or Marxan in particular, it would be worth consulting my [previous post on these topics](http://strimas.com/r/marxan/) before proceeding. I'll briefly review the pertinent pieces of that post here.
+
+## Reserve design
+
+A Marxan reserve design exercise starts by dividing the study region into **planning units** (typically square or hexagonal cells) and, for each planning unit, assigning values that quantify socio-economic cost and conservation benefit for a set of conservation features. The **cost** can be the acquisition cost of the land, the costs of management, the opportunity cost of foregone commercial activities (e.g. from logging or oil palm development), or simply the area. The **conservation features** are typically species (e.g. Clouded Leopard) or habitats (e.g. mangroves or cloud forest). The benefit that each features derives from a planning unit can take a variety of forms, but is typically either occupancy (i.e. presence or absence) or area of occurrence within each planning unit. Finally, for each conservation feature, representation targets must be set, such as 20% of the historical extent of cloud forest or 10,000km<sup>2</sup> of Clouded Leopard habitat.
+
+  The goal of the reserve design exercise is then to find the set of planning units that meets the representation targets while minimizing cost. In addition, reserve planning tools may attempt to minimize fragmentation, or maximize connectivity, to yield spatial configurations of reserves that are conducive to long-term species persistence. Marxan accomplishes this by including a penalty for selecting non-adjacent planning units.
+
+## Mathematical formulation
+
+Formulating the conservation objective mathematically as an optimization problem allows us to tap into the rich body of knowledge that exists in the field of [mathematical optimization](https://en.wikipedia.org/wiki/Mathematical_optimization). In general, the goal is to minimize an **objective function** over a set of **decision variables**, subject to a series of **constraints**. The decision variables are what we control, while the constraints can be thought of as rules that need to be followed. In the particular case of Marxan, the reserve design problem is formulated, for \\( n \\) planning units and \\( m \\) conservation features, as:
+
+$$
+\text{Minimize} \sum_{i=1}^{n}x_i c_i + 
+b \sum_{i=1}^{n} \sum_{j=1}^{n}x_i (1-x_j)\nu_{ij} +
+b \sum_{i=1}^{n} x_i\nu_{ii}
+\text{ subject to } \sum_{i=1}^{n}x_i r_{ij}
+\geq T_j \space \forall \space j 
+$$
+
+where \\( x_i \\) is a binary decision variable specifying whether planning unit \\( i \\) has been selected (1) or not (0), \\( c_i \\) is the cost of planning unit \\( i \\), \\( r_{ij} \\) is the representation level of feature \\( j \\) in planning unit \\( i \\), and \\( T_j \\) is the target for feature \\( j \\). \\( \nu_{ij} \\) is a matrix where off diagonal components are the lengths of the shared boundaries between planning units and diagonal components are external boundaries of planning units (i.e. those that are not shared). Finally, \\( b \\) is known as the **Boundary Length Modifier (BLM)** and determines how much emphasis should be placed on producing compact solutions relative to meeting targets and minimizing cost.
+
+In the above equation, the first three terms comprise the objective function. The first term is just the total cost of a given candidate reserve. The second and third terms together give the total length of the perimeter of the reserve network. Note that in all the Marxan documentation I've seen the third term is absent; however, when Marxan is run, this term is included. The goal is to minimize the objective function, and the final piece of the equation states that we want to do this subject to the constraint that targets are met for all conservation features.
+
+## Mathematical optimization
+
+**Mathematical optimization** is the field that deals with solving optimizing problems, including problems of the type posed above. [**Integer programming (IP)**](https://en.wikipedia.org/wiki/Integer_programming) problems comprise the subset of optimization problems in which the decision variables are restricted to be integers. Reserve design problems fall into this category because the decision variables are binary, corresponding to whether or not each planning unit is selected. Two common subclasses of IP problems are particularly relevant to reserve design:
+
+- **Integer linear programming (ILP):** problems in which the objective function and constraints are linear functions of the decision variables. The reserve design problem fits into this framework if the boundary length term is dropped.
+- **Integer quadratic programming (IQP):** problems in which the objective function is quadratic in the decision variables. These problems can be linearized through a change of variables and are therefore reducible to ILP problems. The full reserve design problem specified above fits into this category.
+
+The general form of the IQP problem is
+
+$$
+\text{Minimize} \space \boldsymbol{c}^\text{T} \boldsymbol{x}
++\boldsymbol{x}^\text{T}Q\boldsymbol{x}
+\space \text{subject to} \space A\boldsymbol{x}\ge\boldsymbol{b}
+$$
+
+where \\( \boldsymbol{x} \\) is a vector of decision variables, \\( \boldsymbol{c} \\) and \\( \boldsymbol{b} \\) are vectors of know coefficients, and \\( A \\) and \\( Q \\) are matrices of known coefficients. If the term with the \\( Q \\) matrix is dropped, this reduced to an ILP problem.
+
+In general, the **parameter space** (the set of all possible decision variable values) is so large that an exhaustive search of all possible sets of decision variables is impossible. For example, in a simple reserve design problem with 100 planning units, there are \\( 2^{100} \sim 10^{30} \\) possibilities in the parameter space. Even if evaluating the objective function for each set of decision variables only took a nanosecond, it would still take about 1,000 times the age of the universe to do so for all possibilities!
+
+Fortunately a wide variety of approaches have been developed for solving optimization problems. **Heuristic techniques** are often used when finding the exact optimal solution is unnecessary or impossible. This is often the case for reserve design problems, which are frequently solved using [**simulated annealing**](https://en.wikipedia.org/wiki/Simulated_annealing), a stochastic heuristic for approximating global optima of complex functions. This method is conceptually simple and can be applied to a wide variety of optimization problems; however, it won't, in general, find the true optimal solution. More importantly, it is impossible to quantify how close the resulting solution is to the optimal solution.
+
+ILP and IQP problems can also be solved using algorithms that are guaranteed to find optimal solutions. If finding the optimal solution is too computationally costly, these exact algorithms can also find solutions that are within a specified distance from the optimum (e.g. 0.1% from the optimum). This ability to quantify the quality of solutions (i.e. distance to optimality) is a major advantage compared to heuristic techniques. Despite this, simulated annealing, particularly as implemented by Marxan, continues to dominate systematic conservation planning exercises. However, a recent paper by [Beyer et al. (2016)](http://www.sciencedirect.com/science/article/pii/S0304380016300217) suggests that a change may be coming. When applied to reserve design problems, they found that ILP algorithms were vastly superior to simulated annealing in terms of both processing time and solution quality.
+
+In the remainder of this post, I will set up an example reserve design problem and demonstrate how to solve it using ILP. Much of this will follow the code in the supplementary matrials for the Beyer et al. (2016) paper.
+
+# Gurobi
+
+[**Gurobi**](http://www.gurobi.com/) is a powerful commercial optimization software that implements a variety of state-of-the-art algorithms for solving optimization problems. Although the software requires a license, the folks at Gurobi provide [free licenses to academic users](http://user.gurobi.com/download/licenses/free-academic). They've also created interfaces to the Gurobi optimization engine for a variety of programming languages, including R. Beyer et al. (2016) used Gurobi in their paper and found it to be superior to open source optimization software.
+
+## Installation
+
+Before we get started you'll need to install Gurobi. First, [download the Gurobi Optimizer](http://user.gurobi.com/download/gurobi-optimizer). Then [request an academic license](http://user.gurobi.com/download/licenses/free-academic). At this point you'll get an email with instructions for downloading and activating the license.
+
+Finally, you'll need to install the `gurobi` R package. The package isn't available on CRAN, rather it's included in the program files you downloaded for the Gurobi Optimizer. So, you'll need to follow the [instruction](https://www.gurobi.com/documentation/6.5/refman/installing_the_r_package.html) on the Gurobi website for installing it.
+
+# Example data
+
+First I create some simple example data: 9 species distributions and a cost layer, defined on a 100 x 100 grid of 1km<sup>2</sup> planning units.
+
+## Conservation features
+
+I create 9 raster layers that I'll use to represent species distributions. To work with data that are at least somewhat realistic I introduce some auto-correlation into the layers by [generating spatially autocorrelated Gaussian random fields](http://santiago.begueria.es/2010/10/generating-spatially-correlated-random-fields-with-r/). I also assign three different levels of rarity and three different characteristic scales to the distribution.
+
+```{r features, results='hide'}
+# raster template
+utm10 <- crs('+proj=utm +zone=10 +ellps=GRS80 +datum=NAD83 +units=km +no_defs')
+r <- extent(c(0, 100, 0, 100)) %>% 
+    raster(nrows = 100, ncols = 100, crs = utm10, vals = 1)
+
+gaussian_field <- function(r, range, n = 1,
+                           mean = 0, variance = 1, nugget = 0, 
+                           coef = c(0, 0), pct = NULL) {
+  # assertions
+  assert_that(inherits(r, "RasterLayer"),
+              is.count(n),
+              is.number(mean),
+              is.number(variance), variance > 0, variance > nugget,
+              is.number(nugget), nugget >= 0,
+              is.numeric(coef), length(coef) == 2,
+              is.null(pct) || (pct >= 0 & pct <= 1))
+  
+  beta <- c(mean, coef)
+  psill <- variance - nugget
+  # define spatial variogram model 
+  gsim <- gstat(formula = (z ~ x + y), dummy = TRUE, beta = beta, nmax = 20,
+                model = vgm(psill = psill, range = range, nugget = nugget,
+                            model = 'Exp'))
+  vals <- rasterToPoints(r, spatial = TRUE) %>% 
+    geometry %>% 
+    predict(gsim, newdata = ., nsim = n) %>%
+    {.@data}
+  # reclassify to binary, pct defines proportion of 1s
+  if (!is.null(pct)) {
+    vals <- mutate_each(vals, funs(as.integer(. < quantile(., pct))))
+  }
+  if (n == 1) {
+    r[] <- vals[, 1]
+    return(r)
+  } else {
+    s <- list()
+    for (i in 1:n) {
+      r_tmp <- r
+      r_tmp[] <- vals[, i]
+      s[i] <- r_tmp
+    }
+    return(stack(s))
+  }
+}
+# conservation features
+species <- mapply(function(x, y, r) gaussian_field(r = r, range = x, pct = y),
+                  rep(c(5, 15, 25), each = 3),
+                  rep(c(0.1, 0.25, 0.5), times = 3),
+                  MoreArgs = list(r = r)) %>% 
+  stack %>% 
+  setNames(letters[1:nlayers(.)])
+levelplot(species, main='Feature Distribution', layout = c(3, 3),
+          scales=list(draw=FALSE),
+          col.regions = c("grey20", "#fd9900"), colorkey = FALSE)
+```
+
+## Cost
+
+I use a similar approach to generate a spatially auto-correlated cost layer.
+
+```{r cost, results='hide'}
+cost <- gaussian_field(r, 20, mean = 1000, variance = 500) %>% 
+  setNames("cost")
+levelplot(cost, main = "Cost", margin = FALSE, col.regions = viridis)
+```
+
+## Boundaries
+
+Finally, I calculate boundaries for a
+
+```{r boundaries}
+calculate_boundary <- function(r) {
+  adjacent(r, 1:ncells(r), sorted = TRUE) %>% data.frame
+}
+
+```
+
+
+# Reformulating the reserve design problem
+
+
+
+Recall that the reserve design 
+
+Here, we explain how to solve ILP problems using R and the commercial optimisation software Gurobi. This includes code for simulating 10,000 planning units with cost and species data for 10 species (Section 2), using this data to solve a simple, linear ILP reserve selection problem (Section 3), using this data to solve the non-linear Marxan objective function (Section 4), and some general advice for solving large ILP problems (Section 5). We recommend that readers understand how the simpler reserve selection problem is solved (Section 3) before moving on to the Marxan problem (Section 4), which is considerably more complex.
+
+We note that copying and pasting code from a PDF format can sometimes cause issues with how quotation marks are translated into plain text. If you experience problems you may wish to first look at whether replacing the single and double quotation marks resolves the problem.
+
+
+# Generating spatial datasets
+
+The following R code was used to simulate input data for the case study, including 10 raster (matrix) datasets representing the value of each planning unit (one raster cell) to each of 10 species of conservation concern, and another raster representing the cost of selecting a planning unit for inclusion in the reserve system. To run this code it is necessary to first install the RandomFields library in R.
+
+```{r}
+# generates simulated spatial (raster) datasets
+# if not installed, the RandomFields library can be installed using this command:
+# install.packages(’RandomFields’)
+library(RandomFields)
+library(sp)
+library(raster)
+# 1. Species data representing the value of each planning unit
+#    (raster cell) to each species
+# user defined parameters:
+# set the number of rows and columns of the raster:
+nr <- 100 # rows
+nc <- 100 # cols
+# set the number of species:
+ns <- 10 # species
+# run the following code without modification:
+N <- nr*nc
+x <- seq(0, 100, length.out=nc)
+y <- seq(0, 100, length.out=nr)
+# the random field parameters are set here and can be adjusted
+model <- "stable"
+mean <- 0
+variance <- 4
+nugget <- 1
+scale <- 20
+alpha <- 1
+# species array
+spp <- array(0, dim=c(ns, nr, nc))
+for (i in 1:ns){
+  f <- GaussRF(x=x, y=y, model=model, grid=TRUE, param=c(mean,
+  variance, nugget, scale, alpha))
+  f[which(f<0)] <- 0
+  spp[i,,] <- f
+}
+
+sum(spp[1, , ] > 0) / length(spp[1, , ])
+
+spp[1, , ]
+# 2. Simulate the cost associated with selecting each planning unit
+# reset the random field parameters (can be adjusted):
+mean <- 1000
+variance <- 100
+nugget <- 1
+scale <- 20
+alpha <- 1.5
+x <- seq(0, 100, length.out=nc)
+y <- seq(0, 100, length.out=nr)
+cost <- GaussRF(x=x, y=y, model=model, grid=TRUE, param=c(mean,
+variance, nugget, scale, alpha))
+```
+
+
+# Solve basic 
+
+Here, we demonstrate how to solve the basic reserve selection problem (see Eqn 1 in the main text) using R and the commercial optimisation software Gurobi (Gurobi Optimization, Inc., 2014). This is largely simply a problem of data organisation so that the call to the Gurobi interface in R can be made (the ‘gurobi’ function in the ‘gurobi’ pacakge in R).
+The costs (the values that are being minimised) must be represented in a vector in which each item corresponds to a decision variable. Decision variables are synonymous with planning units in problems that do not require linearisation. Thus, if there are 10,000 planning units, the cost vector will be of length 10,000 for linear problems. We address the more complex issue of non-linear problems below.
+The constraints must be organised in a matrix in which the columns correspond to decision variables and the rows correspond to individual constraints. If there are 10,000 planning units and 15 constraints, the matrix will have dimensions 10,000 columns by 15 rows for linear problems. This matrix represents the left hand side of each constraint equation. Associated with the constraints matrix are two vectors representing the right hand side of each constraint equation (e.g. the target values) and the equality relationship for each constraint equation
+(<, >, ≤, ≥, or =). Thus the right hand side is a numerical vector and the equality relationship is a character vector, each with a length equal to the number of rows of the constraint matrix (15 in the example above).
+Note that the order of values in the cost vector and the constrain matrix must match. I.e. the 10th item in the cost vector corresponds to a planning unit that must also refer to the planning unit in the 10th column of the constraints matrix. Often the hardest part of implementing ILP problems is ensuring that the order of planning units in these data objects is correct. Note the use of the transpose function, t(), in the code below to ensure that the order is correct when converting the spatial data (a 2D matrix) to a linear vector.
+There are also a small number of other parameters that must be set. The ‘modelsense’ parameter indicates whether the function should be minimised or maximised (‘min’ or ‘max’ respectively). The ‘vtype’ parameter is used to indicate that the decision variables are binary (“B”). Finally, a parameter vector can be specified with a range of options that control the algorithm, such as indicating when the algorithm should force termination, or the gap that should be achieved before termination (details of these settings are available in the Gurobi documentation).
+This example assumes that the relevant spatial datasets have been loaded in R (see the previous section).
+
+```{r}
+# load the gurobi R package (requires that both Gurobi and the
+# Gurobi R package have both been installed):
+require(gurobi)
+# re-specify the number of rows and columns of the raster if they are
+# not already set in R:
+nr <- 100 # rows
+nc <- 100 # cols
+# re-specify the number of species:
+ns <- 10 # species
+# run the following code without modification:
+N <- nr*nc
+# solve the basic reserve selection problem
+# create the constraint matrix with appropriate dimensions
+constr <- matrix(0, nrow=ns, ncol=N)
+# in our example we have one contraint for each of 10 species
+# so we populate the matrix from our species rasters:
+for (i in 1:ns){
+  constr[i,] <- as.vector(t(spp[i,,]))
+}
+# create a vector of default equalities (these can be adjusted later,
+# though we do not need to adjust them in this example):
+sense <- rep(">=", ns)
+# set the targets (the right hand side of the constraint equations);
+# here, we assume that 25% of the total value of each species raster
+# must be met or exceeded:
+targetlevel <- 0.25
+rhs <- rep(0, ns)
+for (i in 1:ns){
+  rhs[i] <- targetlevel * sum(spp[i,,])
+}
+# set up Gurobi model object in R
+model <- list()
+
+# set this as a minimisation problem:
+model$modelsense <- "min"
+# set all decision variables as binary:
+model$vtype <- "B"
+# vector of state values that are being minimised (costs in our example):
+model$obj <- as.vector(t(cost))
+# assign the constraints matrix object, and the right hand side
+# and sense vectors:
+model$A <- constr
+model$rhs <- rhs
+model$sense <- sense
+# set the parameters that control the algorithm (the algorithm stops when
+# a gap of 0.5% is achieved in this example):
+params <- list(Presolve=2, MIPGap=0)
+# solve the problem
+result <- gurobi(model, params)
+# the result object contains several data objects including the objective
+# value achieved (result$objval) and the vector of decision variable
+# values (0 or 1 in our example because the variables are binary).
+```
+
+# Solve Marxan
+
+Here, we demonstrate how to solve the basic reserve selection problem (see Eqn 4 in the main text) using R and the commercial optimisation software Gurobi (Gurobi Optimization, Inc., 2014). As with the simple reserve selection problem this is largely simply a problem of data organisation. What makes it more complicated, however, is that the objective function must be linearised thereby adding new decision variables. As discussed in the main text, numerous additional decision variables are sometimes needed to linearise a non-linear objective function.
+The data structures needed are similar to those described in the previous section. One difference is that the dimensions of the cost vector and the constraint matrix will increase as new decision variables are added. As the additional decision variables associated with each linearisation term only affect two planning units at a time, one consequence of linearisation is that the constraint matrix becomes both sparse and large. As such, it is no longer desirable to express the constraint matrix in its full format as this could consume a great deal of memory (RAM) even for modestly sized problems. Instead, we use the sparse matrix format.
+Another important difference is that a new data structure is needed to describe the neighbour-relationships. In our example we look at the 4 cardinal neighbours for each planning unit (though units on the edge of the raster have less than 4 neighbours, and this too must be accounted for). There are numerous ways such data structures could be implemented. In the case of a regular grid of planning units with a fairly consistent number of neighbours we implement the data structures as a matrix. In the case of polygons with an irregular number of neighbours it would be better to implement this data structure as a list. Thus, some adaptation of this code may be needed to apply it to other problems.
+
+## Create data structure defining neighbours
+
+Here, we assume that the planning units are numbered sequentially beginning from 1. A value of 0 indicated NoData for planning units at the edge of the raster with fewer than 4 neighbours. The following code assigns the neighbour ID numbers, which is straightforward to calculate arithmetically for a grid of planning units. If the planning units were irregular polygons then determining neighbours would require the use of GIS functions.
+
+```{r}
+# create the planning unit (PU) neighbour matrix
+neighbours <- matrix(0, nrow=N, ncol=4)
+# all middle PUs have 4 neighbours:
+for (i in 2:(nc - 1)){
+for (j in 2:(nr - 1)){
+id <- (j - 1) * nc + i
+neighbours[id, 1] <- id - nc
+neighbours[id, 2] <- id + nc
+neighbours[id, 3] <- id - 1
+neighbours[id, 4] <- id + 1
+}}
+# first and last row, excluding corners
+for (i in 2:(nc - 1)){
+  id <- i
+  neighbours[id, 1] <- id + nc
+  neighbours[id, 2] <- id - 1
+  neighbours[id, 3] <- id + 1
+  id <- (nr - 1) * nc + i
+  neighbours[id, 1] <- id - nc
+  neighbours[id, 2] <- id - 1
+  neighbours[id, 3] <- id + 1
+}
+# first and last columns, excluding corners
+for (i in 2:(nr - 1)){
+  id <- (i - 1) * nc + 1
+  neighbours[id, 1] <- id + nc
+  neighbours[id, 2] <- id - nc
+  neighbours[id, 3] <- id + 1
+  id <- i * nc
+  neighbours[id, 1] <- id + nc
+  neighbours[id, 2] <- id - nc
+  neighbours[id, 3] <- id - 1
+}
+#corners
+id <- 1
+neighbours[id, 1] <- id + nc
+neighbours[id, 2] <- id + 1
+id <- nc
+neighbours[id, 1] <- id + nc
+neighbours[id, 2] <- id - 1
+id <- nc * (nr-1) + 1
+neighbours[id, 1] <- id - nc
+neighbours[id, 2] <- id + 1
+id <- nc * nr
+neighbours[id, 1] <- id - nc
+neighbours[id, 2] <- id - 1
+
+```
+
+# Solve the linearised Marxan objective function
+
+In this example the number of decision variables will be one for each planning unit plus one for each pair of neighbours as we assume a symmetric cost for not selecting each pair of neighbours (the cost for not selecting A if B is selected is the same as the cost for not selecting B if A is selected). In the case of asymmetric costs, twice as many additional decision variables would be required to linearise the objective function.
+We also assume an arbitrary ‘cost’ of b units for failing to select neighbouring planning units. This value has no significance in our example other than to control the degree of aggregation of planning units, and is subjectively adjusted by the decision maker. Specifically we assume here that vij = 1 for all neighbours, vij = 0 for all non-neighbours, and b is adjusted by the decision maker (see Eqn 4 in the main text). If real costs have been estimated they could certainly be used here, including different values for each pair of planning (vij ) units if that data is available.
+
+```{r}
+# load the gurobi R package (requires that both Gurobi and the
+# Gurobi R package have both been installed):
+require(gurobi)
+# load the Matrix package for sparse matrices
+require(Matrix)
+# re-specify the number of rows and columns of the raster if they are
+# not already set in R:
+nr <- 100 # rows
+nc <- 100 # cols
+# re-specify the number of species:
+ns <- 10 # species
+# run the following code without modification:
+N <- nr*nc
+# set a default penalty factor here:
+b <- 50
+# determine the number of additional decision variables (M) required:
+M <- length(which(neighbours>0))
+# construct the cost vector from the cost raster and with an additional
+# M replicates of b for the additional decision variables:
+objvals <- c(as.vector(t(cost)), rep(b, M))
+# to construct the sparse constraints matrix we need three empty vectors
+# that are subsequently populated;
+
+# it is often difficult to calculate the required size a priori, so we create
+# large vectors and adjust their size later;
+# mc, mr and mz refer to the column position, row position and value of
+# each cell in the constraint matrix:
+mc <- rep(0, 1000000)
+mr <- rep(0, 1000000)
+mz <- rep(0, 1000000)
+# similarly, we create large vectors for the equality relationship and
+# right hand side values, and adjust their length later;
+# we set the default sense to <= so that we do not have to specify it
+# in the iterative loop later
+sense <- rep("<=", 100000)
+rhs <- rep(0, 100000)
+# the first 10 rows of the constraint matrix correspond to the species
+# targets, which we populate as follows:
+mc[1:(N*ns)] <- rep(c(1:N), ns)
+mr[1:(N*ns)] <- rep(c(1:ns), each=N)
+for (i in 1:ns){
+  pos <- (i-1)*N+1
+  mz[pos:(pos+N-1)] <- as.vector(t(spp[i,,]))
+}
+# we need to adjust the sense matrix for these species targets:
+sense[1:ns] <- ">="
+# we populate the right hand side values as we did in the previous section:
+# set the targets (the right hand side of the constraint equations);
+# here, we assume that 25% of the total value of each species raster
+# must be met or exceeded:
+targetlevel <- 0.25
+target <- rep(0, ns)
+for (i in 1:ns){
+  target[i] <- targetlevel * sum(spp[i,,])
+}
+rhs[1:ns] <- target
+# now work through all the neighbours, adding two constraints
+# for each one we use cr to indicate the current row of the
+# constraint matrix, idx refers to the current index of the mc,
+# mr and mz vectors, and z refers to the index of the new
+# decision variable (column).
+z <- N+1
+idx <- N*ns+1
+cr <- ns+1
+for (i in 1:N){
+ids <- neighbours[i,which(neighbours[i,]>0)]
+for (j in 1:length(ids)){
+  # z_ij - x_i <= 0
+  mc[idx] <- i
+  mr[idx] <- cr
+  mz[idx] <- -1
+  idx <- idx + 1
+  mc[idx] <- z
+  mr[idx] <- cr
+  mz[idx] <- 1
+  idx <- idx + 1
+  cr <- cr + 1
+  # z_ij - x_j <= 0
+  mc[idx] <- ids[j]
+  mr[idx] <- cr
+  mz[idx] <- -1
+  idx <- idx + 1
+  mc[idx] <- z
+  mr[idx] <- cr
+  mz[idx] <- 1
+  idx <- idx + 1
+  cr <- cr + 1
+z <- z + 1 }
+}
+# finally, resize the vectors to the right size:
+idx <- idx - 1
+mc <- mc[1:idx]
+mr <- mr[1:idx]
+mz <- mz[1:idx]
+cr <- cr - 1
+sense <- sense[1:cr]
+rhs <- rhs[1:cr]
+# construct the sparse matrix:
+constr <- sparseMatrix(i=mr, j=mc, x=mz)
+# set up Gurobi model object in R
+model <- list()
+# set this as a minimisation problem:
+model$modelsense <- "min"
+# set all decision variables as binary:
+model$vtype <- "B"
+# vector of state values that are being minimised (costs in our example):
+model$obj <- objvals
+# assign the constraints matrix object, and the right hand side
+# and sense vectors:
+model$A <- constr
+model$rhs <- rhs
+model$sense <- sense
+# set the parameters that control the algorithm (the algorithm stops when
+# a gap of 0.5% is achieved in this example):
+params <- list(Presolve=2,MIPGap=0.005)
+# solve the problem
+result <- gurobi(model,params)
+# the result object contains several data objects including the objective
+# value achieved (result$objval) and the vector of decision variable
+# values (0 or 1 in our example because the variables are binary).
+
+```
+
+## Calculating the Pareto frontier
+
+
+Once the basic data structures have been established the Pareto frontier can be estimated by iteratively solving the optimisation problem for different values of the penalty factor b. In our example that simply involves adjusting the cost vector. Determining the range of penalty values to explore, and the interval between them requires trial and error.
+
+```{r}
+# create a vector of penalty values to use:
+pen <- seq(0, 175, 25)
+# create some empty data objects to store the objective values and
+# solutions for visualisation
+sols <- list()
+solcost <- rep(0, length(pen))
+# loop through the penalties, optimising for each one:
+for (p in 1:length(pen)){
+  objvals <- c(as.vector(t(cost)), -rep(pen[p], M))
+  model$obj <- objvals
+  result <- gurobi(model,params)
+  sols[[p]] <- result$x
+  solcost[p] <- result$objval
+  save(sols, file="sols.RData")
+  save(solcost, file="solcost.RData")
+}
+```
+
+Note that the above code saves the sols and solcost results objects within the loop. This is precautionary. For some problems the optimisation can take a considerable amount of time to run and if the objects are not saved regularly they could be lost if there is a problem with the computer.
+
+# General advice
+
+We conclude with some general advice on solving larger ILP problems. Small problems can usually be solved to completion quite quickly, using only a small amount of system resources. Larger problems can be problematic either because of system resource limitations, or because of long processing times. But these problems can be mitigated.
+Gurobi is a multithreaded application so will, by default, use all the processors and as much RAM as it needs on your system (unless you explicitly restrict this behaviour). When solving large problems it is useful to close all other applications and not use the computer for other tasks, thereby maximising the resources available to Gurobi.
+
+The major limitation for solving very large problems is memory (RAM). Unlike most other software, Gurobi can use all of the RAM on a computer. It is unlikely RAM will be a limitation with linear problems, such as the reserve selection problem, even for millions of planning units. But the size of the constraint matrix increases greatly with the number of planning units for problems that require linearisation. For example, in some of our trials solving a Marxan ILP problem with 50,000 planning units could consume several gigabytes of RAM (c. 4GB in that particular example). Solving a more complex Marxan With Zones problem consumed more than 8GB RAM. As a general rule, we suggest running Gurobi on a computer with no less than 8GB RAM for large problems (tens of thousands of planning units and a non-linear objective function).
+Solving large problems to completion can take a long time. Instead, you will probably wish to solve such problems to within a certain gap of optimality. The question then becomes, what gap to specify? When Gurobi runs you will see that it reports the quality of the current solution every few seconds. You will find that the gap drops quickly, but then begins to plateau and only improve at a much slower rate.
+It is often useful to run Gurobi initially with a time limit rather than a gap objective so that you can determine what an appropriate gap might be. For example, the following parameters could be used to run Gurobi for 30 minutes:
+
+```r
+params <- list(Presolve=2,TimeLimit=1800.0)
+```
+
+You could then estimate that it would reach a suitable gap (e.g. 5%) within a time frame you deem reasonable, and you could then implement that gap for all subsequent processing:
+
+```r
+params <- list(Presolve=2,MIPGap=0.005)
+```
+
+The reason that the gap is a more desirable stopping rule than the time is that it ensures all solutions are of the same quality. This is a profound advantage over simulated annealing whereby it is unclear what the absolute quality of the solutions is. We suggest that when solving optimisation problems to estimate a Pareto front it is much more appropriate to specify a gap that a time limit.
+
+
+<div class="footnotes">
+  <p><strong>Footnotes</strong></p>
+  <p><strong id="f1">1</strong> 
+    1. Beyer HL, Dujardin Y, Watts ME, Possingham HP. 2016. Solving conservation planning problems with integer linear programming. Ecological Modelling 328: 14–22. 
+[↩](#a1)
+  </p>
+</div>

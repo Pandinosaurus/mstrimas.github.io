@@ -67,12 +67,13 @@ Given these inputs, Marxan finds the set of planning units that meets the repres
 
 $$
 \text{Minimize} \sum_{i=1}^{n}x_i c_i + 
-b \sum_{i=1}^{n} \sum_{j=1}^{n}x_i (1-x_j)\nu_{ij}
+b \sum_{i=1}^{n} \sum_{j=1}^{n}x_i (1-x_j)\nu_{ij} +
+b \sum_{i=1}^{n} x_i\nu_{ii}
 \text{ subject to } \sum_{i=1}^{n}x_i r_{ij}
 \geq T_j \space \forall \space j 
 $$
 
-where \\( x_i \\) is a binary decision variable specifying whether a planning unit has been selected (1) or not (0), \\( c_i \\) is the cost of planning unit \\( i \\), \\( \nu_{ij} \\) is a matrix of boundary lengths between planning units, \\( r_{ij} \\) is the representation level of feature \\( j \\) in planning unit \\( i \\), and \\( T_j \\) is the target for feature \\( j \\). Finally, \\( b \\) is known as the **Boundary Length Modifier (BLM)** and determines how much emphasis should be placed on producing compact solutions relative to meeting targets and minimizing cost. Note that the second term, with the double summation, is just the total length of the external boundary of the reserve network.
+where \\( x_i \\) is a binary decision variable specifying whether a planning unit has been selected (1) or not (0), \\( c_i \\) is the cost of planning unit \\( i \\), \\( r_{ij} \\) is the representation level of feature \\( j \\) in planning unit \\( i \\), and \\( T_j \\) is the target for feature \\( j \\). \\( \nu_{ij} \\) is a matrix where off diagonal components are the lengths of the shared boundaries between planning units and diagonal components are external boundaries of planning units (i.e. those that are not shared). Finally, \\( b \\) is known as the **Boundary Length Modifier (BLM)** and determines how much emphasis should be placed on producing compact solutions relative to meeting targets and minimizing cost. Note that the second and third terms together are just the total length of the perimeter of the reserve network. In all the Marxan documentation I've seen the third term is absent; however, when Marxan is run, this term is included.
 
 Finally, a status code can be assigned to each planning unit to specify whether it is locked in or locked out the of solution. The codes and their meanings are as follows:
 
@@ -456,16 +457,18 @@ Recall that the problem Marxan seeks to solve can be formulated mathematically i
 
 $$
 \text{Minimize} \sum_{i=1}^{n}x_i c_i + 
-b \sum_{i=1}^{n} \sum_{j=1}^{n}x_i (1-x_j)\nu_{ij}
+b \sum_{i=1}^{n} \sum_{j=1}^{n}x_i (1-x_j)\nu_{ij} +
+b \sum_{i=1}^{n} x_i\nu_{ii}
 \text{ subject to } \sum_{i=1}^{n}x_i r_{ij}
 \geq T_j \space \forall \space j 
 $$
 
-The two terms in the objective function correspond to minimizing the cost and external boundary of the reserve network, respectively. Rather than strictly enforcing the representation constraint, Marxan incorporates the constraint into the objective function as a **target shortfall penalty**. This approach is more efficient because the constraint does not have to be enforced in each simulated annealing iteration. Furthermore, it allows more flexibility within simulated annealing, by temporarily allowing solutions that don't meet targets.
+The fist terms in the objective function correspond to minimizing the cost, while second and third correspond to minimizing the perimeter of the reserve network. Rather than strictly enforcing the representation constraint, Marxan incorporates the constraint into the objective function as a **target shortfall penalty**. This approach is more efficient because the constraint does not have to be enforced in each simulated annealing iteration. Furthermore, it allows more flexibility within simulated annealing, by temporarily allowing solutions that don't meet targets.
 
 $$
 f(\vec{x}) = \sum_{i=1}^{n}x_i c_i + 
 b \sum_{i=1}^{n} \sum_{j=1}^{n}x_i (1-x_j)\nu_{ij} +
+b \sum_{i=1}^{n} x_i\nu_{ii} +
 \sum_{j=1}^{m}s_j \gamma_j \cdot 
 \max\left( 1 - \frac{1}{T_j}\sum_{i=1}^{n}x_i r_{ij},0\right)
 $$

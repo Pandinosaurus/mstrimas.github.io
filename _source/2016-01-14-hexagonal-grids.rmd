@@ -434,4 +434,4 @@ The raster package makes this aggregation task extremely easy, just a single lin
   <p><strong id="f3">3</strong> 
     "1-uniform n1" by Tomruen - Own work. Licensed under CC BY-SA 4.0 via Commons - https://commons.wikimedia.org/wiki/File:1-uniform_n1.svg [↩](#a1)
     </p>
-<small>
+</div>

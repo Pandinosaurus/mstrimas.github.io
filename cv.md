@@ -10,4 +10,4 @@ I'm a former physicist turned conservation researcher, and I'm currently looking
 
 I also see myself as someone who can make an important contribution facilitating conservation research by developing or implementing new tools and techniques. I can help set up databases to better manage spatial or ecological data, move analyses onto Amazon's cloud computing platform (AWS) to improve efficiency, or develop R packages to make analytical workflows more robust, efficient, and repeatable. I pride myself in being knowledgeable about best practices in programming and reproducible research, and I love passing this knowledge on to others. I've run workshops on collaborative coding with git and GitHub, cloud computing with Amazon Web Services, and a variety of R topics including effective data manipulation and spatial analysis and visualization in R.
 
-If you think I might be a good fit for your project, take a look at my [CV](/assets/strimas-mackey_cv.pdf) or [send me an email](strimas@zoology.ubc.ca).
+If you think I might be a good fit for your project, take a look at my [CV](/assets/strimas-mackey_cv.pdf) or [send me an email](mailto:strimas@zoology.ubc.ca).

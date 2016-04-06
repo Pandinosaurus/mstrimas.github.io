@@ -2,7 +2,6 @@
 layout: page
 title: About
 permalink: /about/
-include_avatar: false
 ---
 
 <img src="/img/matt-grey.jpg" alt="me" class="center" style="width:80%;" />

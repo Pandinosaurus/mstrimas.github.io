@@ -259,7 +259,7 @@ head(puvspr, 5) %>%
 
 ### Setting targets
 
-Prior to a Marxan run, absolute representation targets for each conservation feature must be set. This may occur through expert elicitation, modeling exercise to determine the amount of habitat necessary to ensure persistence, or more informal methods. Regardless, it's very common to set proportional targets, such as protecting 20% of the range of a given species or habitat type. I define a function that converts proportional targets to absolute representation targets.
+Prior to a Marxan run, absolute representation targets for each conservation feature must be set. This may occur through expert elicitation, modeling exercise to determine the amount of habitat necessary to ensure persistence, or more informal methods. Regardless, it's very common to set percent-based targets, such as protecting 20% of the range of a given species or habitat type. I define a function that converts proportional targets to absolute representation targets.
 
 In addition, this function sets the **Species Penalty Factor (SPF)** for each feature. I will explain these in detail below but, for now, they can be thought of as measuring the relative importance of meeting the representation target for each feature.
 

@@ -19,6 +19,8 @@ knitr::opts_chunk$set(dev = "png", message = FALSE)
 options(knitr.table.format = 'markdown')
 ```
 
+**NOTE: I've built an R package based on the code in this post. If you're interested in solving systematic reserve design problems with Gurobi in R, take a look:** [https://github.com/mstrimas/protectr](https://github.com/mstrimas/protectr)
+
 **Systematic conservation planning** takes a rigorous, repeatable, and systematic approach to designing new protected areas that efficiently meet conservation objectives, while minimizing socioeconomic cost. This approach can be used to determine the optimal locations to invest limited conservation funds in the creation of new reserves. In a [previous post](http://strimas.com/r/marxan/), I provided an introduction to systematic conservation planning and discussed how Marxan solves the reserve design problem using a stochastic optimization heuristic known as **simulated annealing**.
 
 Simulated annealing is widely used for solving optimization problems in conservation planning; however, a [recent paper](http://www.sciencedirect.com/science/article/pii/S0304380016300217) <span id="a1">(<a href="#f1">Beyer et al. 2016</a>)</span> by the team behind Marxan describes an alternative approach that draws on the techniques of **integer programming** to solve reserve design problems. In particular, their method uses [**Gurobi**](http://www.gurobi.com/), a powerful commercial optimization software, to determine the optimal location for new reserves. The authors kindly included their code in the supplementary materials of their paper and I've worked through this code as well as the Gurobi documentation. In this post I summarize what I've learned and describe how to solve Marxan-like reserve design problems with Gurobi in R.
@@ -393,7 +395,7 @@ The `gurobi()` function returns its results as a named list with several compone
 
 - `results$x`: a vector of decision variables for the best solution found. This will either be the true optimal solution or a solution within a given gap of the true optimum.
 - `results$objval`: the value of the objective function for the returned solution.
-- `results:objbound`: a lower bound for the true optimum of the objective function.
+- `results$objbound`: a lower bound for the true optimum of the objective function.
 
 In this case, the objective function value for the solution is:
 

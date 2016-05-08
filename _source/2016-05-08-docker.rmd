@@ -9,7 +9,7 @@ category: r
 tags: r docker optimization
 ---
 
-**In this post I show how to create a Docker image for linear programming in R. If you just want to use the image, visit the repository on [Docker Hub](https://hub.docker.com/u/mstrimas/optimizr).**
+**In this post I show how to create a Docker image for linear programming in R. If you just want to use the image, visit the repository on [Docker Hub](https://hub.docker.com/r/mstrimas/optimizr/).**
 
 [Docker](https://www.docker.com/) provides a means of wrapping up an application in a complete environment that contains everything it needs to run: code, dependencies, operating system, and files. This guarantees that it will always run the same, regardless of what platform it's run on. In this post, I'll give an introduction to building your own Docker images.
 

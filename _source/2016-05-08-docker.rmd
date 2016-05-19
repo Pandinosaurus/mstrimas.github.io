@@ -5,7 +5,7 @@ published: true
 excerpt: >
   Introduction to Docker containers. In this post I build a Docker container
   for linear programming in R.
-category: r
+category: prioritization
 tags: r docker optimization
 ---
 

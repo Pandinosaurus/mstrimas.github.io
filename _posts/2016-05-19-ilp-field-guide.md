@@ -10,14 +10,9 @@ category: prioritization
 tags: r gurobi optimization marxan
 ---
 
-```{r echo = F, include = F, eval = F}
-setwd("_source/")
-```
 
-```{r setup, echo = F}
-knitr::opts_chunk$set(dev = "png", message = FALSE)
-options(knitr.table.format = 'markdown')
-```
+
+
 
 In this post I'll compare alternative integer linear programming (ILP) solvers for conservation planning. The goal is to develop a tool to solve the Marxan reserve design problem using ILP rather than simulated annealing. Unlike simulated annealing, ILP can find the true global optimum of an optimization problem or, if time constraints are an issue, it can return a solution that is within a specified distance form the optimum. This ability to evaluate the quality of a solution, makes IP an excellent candidate for conservation planning.
 
@@ -66,7 +61,8 @@ As I understand it, most of these optimizers use some variation of an algorithm 
 
 ## Packages
 
-```{r packages, message=FALSE}
+
+```r
 library(dplyr)
 library(sp)
 library(raster)
@@ -94,7 +90,8 @@ First, I'll set up the problem and prepare some data.
 
 To test the various methods, I'll generate 9 species distributions and a cost layer over a 10x10 grid of planning units (100 total). I've intentionally chosen an extremely simplified problem to start with to ensure that all the solvers will be able to handle it; later we'll look at different problem sizes. Although fabricated, these layers have some spatial auto-correlation built it to make them semi-realistic.
 
-```{r species}
+
+```r
 # raster template
 r <- extent(0, 100, 0, 100) %>% 
   raster(nrows = 10, ncols = 10, vals = 1)
@@ -109,29 +106,39 @@ species <- mapply(function(x, y, r) gaussian_field(r = r, range = x, prop = y),
 levelplot(species, main = 'Species Distributions', layout = c(3, 3),
           scales = list(draw = FALSE),
           col.regions = c("grey20", "#fd9900"), colorkey = FALSE)
+```
+
+<img src="/figures//ilp-field-guide_species-1.png" title="plot of chunk species" alt="plot of chunk species" style="display: block; margin: auto;" />
+
+```r
 # genrate cost layer
 cost_raster <- gaussian_field(r, 20, mean = 1000, variance = 500) %>% 
   setNames("cost")
 levelplot(cost_raster, main = "Cost", margin = FALSE, col.regions = viridis)
 ```
 
+<img src="/figures//ilp-field-guide_species-2.png" title="plot of chunk species" alt="plot of chunk species" style="display: block; margin: auto;" />
+
 ## Pre-processing
 
 The various components of the optimization problem need to be prepared. Where possible, I use sparse matrices from the `slam` package to save memory. First, the representation matrix \\( r_{ij} \\) stores the representation level of feature \\( j \\) in planning unit \\( i \\).
 
-```{r rij}
+
+```r
 rij <- as.simple_triplet_matrix(t(unname(species[])))
 ```
 
 I arbitrarily set targets to 30% of the total level of representation across the whole study area.
 
-```{r targets}
+
+```r
 targets <- 0.3 * cellStats(species, "sum")
 ```
 
 Finally, I convert the cost raster to a numeric vector.
 
-```{r cost}
+
+```r
 cost <- cost_raster[[1]][]
 ```
 
@@ -163,7 +170,8 @@ In some cases, the solver doesn't return the objective function bounds and there
 
 The function `gurobi(model, params)` takes two arguments: `model` contains the various elements that define the optimization model and `params` is a named list of components specifying Gurobi parameters. The Gurobi documentation describes the [components of the model object](https://www.gurobi.com/documentation/6.5/refman/solving_models_with_the_gu.html) and contains the full list of [possible parameters](https://www.gurobi.com/documentation/6.5/refman/parameters.html#sec:Parameters).
 
-```{r gurobi, results='hide', eval=F}
+
+```r
 msc_gurobi <- function(cost, rij, targets, gap = 1e-4,
                        time_limit = Inf,
                        first_feasible = FALSE) {
@@ -211,73 +219,26 @@ msc_gurobi <- function(cost, rij, targets, gap = 1e-4,
 results_gurobi <- msc_gurobi(cost, rij, targets, gap = 0)
 ```
 
-```{r gurobi-hidden, include=F}
-msc_gurobi <- function(cost, rij, targets, gap = 1e-4,
-                       time_limit = Inf,
-                       first_feasible = FALSE) {
-  # construct model
-  model <- list()
-  # goal is to minimize objective function
-  model$modelsense <- "min"
-  # binary decision variables
-  model$vtype <- "B"
-  # objective function
-  model$obj <- cost
-  # structural constraints
-  model$A <- rij
-  model$rhs <- targets
-  model$sense <- rep(">=", length(targets))
 
-  # stopping conditions
-  # gap to optimality
-  params <- list(Presolve = 1, MIPGap = gap)
-  # stop after specified number of seconds
-  if (is.finite(time_limit)) {
-    params <- c(params, TimeLimit = time_limit)
-  }
-  # first feasible solution
-  if (first_feasible) {
-    params <- c(params, SolutionLimit = 1)
-  }
-  
-  # solve
-  t <- system.time(
-    results <- gurobi::gurobi(model, params)
-  )
-  # get rid of log file
-  if (file.exists("gurobi.log")) {
-    unlink("gurobi.log")
-  }
-  
-  # prepare return object
-  list(time = summary(t)[["user"]],
-       x = results$x,
-       objval = results$objval,
-       objbound = results$objbound,
-       gap = (results$objval / results$objbound - 1))
-}
-
-f <- "data/ilp-field-guide/gurobi-results-10.rds"
-if (file.exists(f)) {
-  results_gurobi <- readRDS(f)
-} else {
-  results_gurobi <- msc_gurobi(cost, rij, targets, gap = 0)
-  saveRDS(results_gurobi, f)
-}
-```
 
 Gurobi easily finds the true global optimum almost instantly; no surprise since this was an intentionally simple problem. Let's look at the results.
 
-```{r gurobi-results}
+
+```r
 # objective function value for returned solution
 results_gurobi$objval
+#> [1] 19959.27
 # gap to optimality
 results_gurobi$gap
+#> [1] 2.220446e-16
 # time to solve
 results_gurobi$time
+#> [1] 0.023
 # plot
 plot_selection(cost_raster, results_gurobi$x, title = "Gurobi")
 ```
+
+<img src="/figures//ilp-field-guide_gurobi-results-1.png" title="plot of chunk gurobi-results" alt="plot of chunk gurobi-results" style="display: block; margin: auto;" />
 
 Now that we have this optimal solution, we can test out the other solvers to see if they produce similar results.
 
@@ -289,7 +250,8 @@ Now that we have this optimal solution, we can test out the other solvers to see
 
 The `lpSolve` package is a high-level interface to `lp_solve`. Since it doesn't interact with the low-level API functions of `lp_solve`, it has limited functionality and tends to be slow. The function `lp()` is the main interface to `lp_solve` and the arguments to this function define the optimization problem in a similar fashion to the components of the `model` object for `gurobi()`. As far as I can tell there is no means of specifying any of the stopping conditions with `lpSolve`.
 
-```{r lpsolve, results='hide'}
+
+```r
 msc_lpsolve <- function(cost, rij, targets, bound = NA) {
   # convert rij to full matrix form, lpSolve can't handle sparse matrices
   rij <- as.matrix(rij)
@@ -322,13 +284,17 @@ results_lpsolve <- msc_lpsolve(cost, rij, targets, bound = results_gurobi$objbou
 
 `lpSolve` finds the same optimal solution as Gurobi, and does so fairly quickly.
 
-```{r lpsolve-results}
+
+```r
 # check that correct optimal solution was found
 all.equal(results_lpsolve$x, results_gurobi$x)
+#> [1] TRUE
 # gap to optimality
 results_lpsolve$gap
+#> [1] 7.194245e-14
 # time to solve
 results_lpsolve$time
+#> [1] 1.11
 ```
 
 One strength of `lpSolve` is that it's extremely easy to install directly from CRAN; there are no dependencies or external libraries required. However after some testing, I've concluded it isn't a viable option for conservation planning. It doesn't provide a bound on the objective function so it's impossible to assess solution quality. More importantly, for problems only slightly bigger than this extremely simple example, `lpSolve` takes prohibitively long to produce a solution. Finally, there is no ability to specify a stopping condition.
@@ -339,7 +305,8 @@ An alternative for using `lp_solve` is the `lpSolveAPI` package, which provides 
 
 Unlike `lpSolve`, `lpSolveAPI` provides access to all three stopping conditions discussed above. However, `lp_solve` does not explicitly return a lower bound on the objective function or the gap to optimality. It does print the objective function of the **relaxed solution** to screen though. The relaxed solution is simply the solution ignoring the constraints that the decision variables must be binary, i.e. it lets them be real numbers between 0 and 1 instead. This optimization problem is much easier to solve and acts as a starting point for finding the true solution. However, the relaxed solution is also a valid lower bound for the optimization problem because adding constraints can only function to make the minimum value of the objective function larger. Therefore, I extract this value from the screen output and use it as the lower bound.
 
-```{r lpsolveapi}
+
+```r
 msc_lpsolveapi <- function(cost, rij, targets,
                            gap = 1e-4,
                            time_limit = Inf,
@@ -398,15 +365,21 @@ results_lpsolveapi <- msc_lpsolveapi(cost, rij, targets)
 
 Again, `lpSolveAPI` finds the correct optimal solution, and does so fairly quickly.
 
-```{r lpsolveapi-results}
+
+```r
 # check that correct optimal solution was found
 all.equal(results_lpsolveapi$x, results_gurobi$x)
+#> [1] TRUE
 # gap to optimality
 results_lpsolveapi$gap
+#> [1] 0.03085664
 # time to solve
 results_lpsolveapi$time
+#> [1] 4.17
 # compare lower bound with Gurobi
 c(gurobi = results_gurobi$objbound, lpSolveAPI = results_lpsolveapi$objbound)
+#>     gurobi lpSolveAPI 
+#>   19959.27   19361.83
 ```
 
 This interface to `lp_solve` is also super easy to install, but there are significant improvements over `lpSolve`. First, it appears to be faster and able to handle larger problems. `lpSolveAPI` also allows for much more control over the solving algorithm, including the ability to set the stopping conditions. Setting the time limit and requesting the first feasible solution both work as expected. However, I haven't been able to get the gap to optimality condition to work. In my testing the solver will typically keep running even if the first feasible solution is already within the specified gap to optimality. I'm unclear why this is happening.
@@ -425,7 +398,8 @@ Two different R packages have been developed to interact with SYMPHONY. On Mac O
 
 `RSymphony` is the original R SYMPHONY interface and it appears on CRAN. The key function for this package is `Rsymphony_solve_LP()` and the first several arguments specify the optimization model in much the same way as the components of the `model` object in `gurobi`. The remaining arguments can be used to set parameters for the solver, including the stopping conditions.
 
-```{r rsympony}
+
+```r
 msc_rsymphony <- function(cost, rij, targets,
                           gap = 1e-4,
                           time_limit = Inf,
@@ -464,13 +438,17 @@ results_rsymphony <- msc_rsymphony(cost, rij, targets,
 
 `Rsymphony` finds the correct optimal solution fairly quickly.
 
-```{r rsymphony-results}
+
+```r
 # check that correct optimal solution was found
 all.equal(results_rsymphony$x, results_gurobi$x)
+#> [1] TRUE
 # gap to optimality
 results_rsymphony$gap
+#> [1] 2.220446e-16
 # time to solve
 results_rsymphony$time
+#> [1] 0.76
 ```
 
 Overall, I like the simple interface that `Rsymphony` uses, however, the installation problems are a major deterrent. Furthermore, there appears to be no means of determining the optimality gap or lower bound.
@@ -479,7 +457,8 @@ Overall, I like the simple interface that `Rsymphony` uses, however, the install
 
 `lpsymphony` is almost identical to `Rsymphony`, however, the package ostensibly includes SYMPHONY itself, which is meant to ease installation. In practice, on Mac OS and Linux, I didn't find it any easier to install. In addition, installing SYMPHONY directly ensures you get the most recent version. Finally, `lpsymphony` is on [Bioconductor](https://www.bioconductor.org/packages/3.3/bioc/html/lpsymphony.html), not CRAN, so can't be installed with `install.packages()`. For these reasons I don't see the need to use `lpsymphony`, but I include it here for completeness. On the up side, it does have a nice [vignette](https://www.bioconductor.org/packages/3.3/bioc/vignettes/lpsymphony/inst/doc/lpsymphony.pdf), which `Rsymphony` doesn't have.
 
-```{r lpsympony}
+
+```r
 msc_lpsymphony <- function(cost, rij, targets,
                           gap = 1e-4,
                           time_limit = Inf,
@@ -529,13 +508,17 @@ results_lpsymphony <- msc_lpsymphony(cost, rij, targets,
 
 `lpsymphony` finds the correct optimal solution.
 
-```{r lpsymphony-results}
+
+```r
 # check that correct optimal solution was found
 all.equal(results_lpsymphony$x, results_gurobi$x)
+#> [1] TRUE
 # gap to optimality
 results_lpsymphony$gap
+#> [1] 2.220446e-16
 # time to solve
 results_lpsymphony$time
+#> [1] 0.61
 ```
 
 My comments on `lpsymphony` are the same as for `Rsymphony` since they're essentially the same package.
@@ -548,7 +531,8 @@ The R package for this solver is `clpAPI`, which interacts with the low-level Cl
 
 As with SYMPHONY, I found both the solver and package challenging to install on Mac OS. I was able to compile Clp from source, but struggled to install the R package because it could locate the Clp libraries and shared objects.
 
-```{r clpapi}
+
+```r
 msc_clpapi <- function(cost, rij, targets, bound = NA) {
   # construct model with given number of constraints (i.e. features)
   # and decision variables (i.e. planning units)
@@ -594,18 +578,24 @@ results_clpapi <- msc_clpapi(cost, rij, targets,
 
 The results:
 
-```{r clpapi-results}
+
+```r
 # objective function value for returned solution
 results_clpapi$objval
+#> [1] 19361.83
 # gap to optimality
 results_clpapi$gap
+#> [1] -0.02993301
 # time to solve
 results_clpapi$time
+#> [1] 0
 # plot
 clp_sol <- cost_raster
 clp_sol[] <- results_clpapi$x
 levelplot(clp_sol, main = "clpAPI", margin = FALSE, col.regions = viridis)
 ```
+
+<img src="/figures//ilp-field-guide_clpapi-results-1.png" title="plot of chunk clpapi-results" alt="plot of chunk clpapi-results" style="display: block; margin: auto;" />
 
 Since Clp solves the relaxation, with continuous decision variables, we see that fractional protection is allowed here. Also, note that the gap to optimality is negative, indicating the solution is better than optimal. This occurs because the relaxed solution has fewer constraints and therefore can find a better solution than the proper ILP. This isn't what we're looking for, so I won't consider Clp any further in this post. 
 
@@ -619,7 +609,8 @@ The [GNU Linear Programming Kit](https://www.gnu.org/software/glpk/) is an open-
 
 CRAN has working binaries for this package, making it easy to install on Mac OS.
 
-```{r rglpk}
+
+```r
 msc_rglpk <- function(cost, rij, targets, bound = NA) {
   # prepare model and solve
   t <- system.time(
@@ -661,15 +652,21 @@ results_rglpk <- msc_rglpk(cost, rij, targets)
 
 `Rglpk` finds the correct optimal solution, and does so quickly.
 
-```{r rglpk-results}
+
+```r
 # check that correct optimal solution was found
 all.equal(results_rglpk$x, results_gurobi$x)
+#> [1] TRUE
 # gap to optimality
 results_rglpk$gap
+#> [1] 0.02218146
 # time to solve
 results_rglpk$time
+#> [1] 0.19
 # compare lower bound with Gurobi
 c(gurobi = results_gurobi$objbound, glpkAPI = results_rglpk$objbound)
+#>   gurobi  glpkAPI 
+#> 19959.27 19526.16
 ```
 
 `Rglpk` benefits from a simple interface and an easy install process, however, it's lacking some important features. In particular, there's no way to set stopping conditions or to assess solution quality. However, lower bounds at each step are printed to screen as the algorithm progresses, so I've captured the output and parsed out the last bound listed. Unfortunately, the lower bound *after* the algorithm finishes isn't listed, hence the bound I extract is only an approximation and will generally be more lower (i.e. more conservative) than the true lower bound.
@@ -680,7 +677,8 @@ c(gurobi = results_gurobi$objbound, glpkAPI = results_rglpk$objbound)
 
 This package is also easy to install from the conveniently provided binary on CRAN.  There are two nice vignettes for `glpkAPI`: a [quick start guide](https://cran.r-project.org/web/packages/glpkAPI/vignettes/glpkAPI.pdf) and a [full-featured vignette](https://cran.r-project.org/web/packages/glpkAPI/vignettes/glpk-gmpl-intro.pdf). However, neither of them explain how to solve integer linear programs. It turns out this isn't trivial and I had to consult the [GLPK](http://www.gnu.org/software/glpk/glpk.html#documentation) documentation to understand how it's done with the C API, then convert that over to the corresponding `glpkAPI` function calls.
 
-```{r glpkapi}
+
+```r
 msc_glpkapi <- function(cost, rij, targets,
                         gap = 1e-4,
                         time_limit = Inf,
@@ -748,15 +746,21 @@ results_glpkapi <- msc_glpkapi(cost, rij, targets)
 
 `glpkAPI` finds the correct optimal solution, and does so quickly. As with `Rglpk`, I've had to extract the lower bound from the screen output. I compare it to the Gurobi lower bound to demonstrate that Gurobi gives a better approximation.
 
-```{r glpkapi-results}
+
+```r
 # check that correct optimal solution was found
 all.equal(results_glpkapi$x, results_gurobi$x)
+#> [1] TRUE
 # gap to optimality
 results_glpkapi$gap
+#> [1] 7.938193e-05
 # time to solve
 results_glpkapi$time
+#> [1] 0.14
 # compare lower bound with Gurobi
 c(gurobi = results_gurobi$objbound, glpkAPI = results_glpkapi$objbound)
+#>   gurobi  glpkAPI 
+#> 19959.27 19957.69
 ```
 
 `glpkAPI` has a lot going for it: it's easy to install, feature rich, and quick. The interface can be confusing to use and it took me some sleuthing to figure out how to get everything working as desired. However, this is the benefit of the wrapper function: all that confusion can be abstracted away from the end user. The main thing it's missing it a good method for directly accessing the objective function lower bound.

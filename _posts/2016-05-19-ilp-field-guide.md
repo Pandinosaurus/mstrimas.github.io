@@ -4,7 +4,7 @@ title: "Field Guide to ILP Solvers in R for Conservation Prioritization"
 published: true
 excerpt: >
   A field guide to all the open-source integer linear programming solvers that
-  have R packages. The focus is on finding an open-sourcealternative to Gurobi
+  have R packages. The focus is on finding an open-source alternative to Gurobi
   for conservation prioritization and proteced area design.
 category: prioritization
 tags: r gurobi optimization marxan
@@ -46,10 +46,10 @@ $$
 
 The [CRAN Task View for Optimization](https://cran.r-project.org/web/views/Optimization.html#MathematicalProgrammingSolvers) list several open source linear programming solvers, and their R package interfaces:
 
-- [lp_solve](http://lpsolve.sourceforge.net/5.5/) with R packages [lpSolve](https://cran.r-project.org/web/packages/lpSolve/index.html) and [lpSolveAPI](https://cran.r-project.org/web/packages/lpSolveAPI/index.html).
-- [COIN-OR Symphony](https://projects.coin-or.org/SYMPHONY) with R packages [Rsymphony](https://cran.r-project.org/web/packages/Rsymphony/index.html), from CRAN, and [lpsymphony](https://www.bioconductor.org/packages/3.3/bioc/html/lpsymphony.html), from Bioconductor.
-- [COIN-OR Clp](http://projects.coin-or.org/Clp) with R package [clpAPI](https://cran.r-project.org/web/packages/clpAPI/index.html).
-- The [GNU Linear Programming Kit](http://www.gnu.org/software/glpk/) with R packages [glpkAPI](https://cran.r-project.org/web/packages/glpkAPI/index.html) and [Rglpk](https://cran.r-project.org/web/packages/Rglpk/index.html).
+- [**lp_solve**](http://lpsolve.sourceforge.net/5.5/) with R packages [lpSolve](https://cran.r-project.org/web/packages/lpSolve/index.html) and [lpSolveAPI](https://cran.r-project.org/web/packages/lpSolveAPI/index.html).
+- [**COIN-OR SYMPHONY**](https://projects.coin-or.org/SYMPHONY) with R packages [Rsymphony](https://cran.r-project.org/web/packages/Rsymphony/index.html), from CRAN, and [lpsymphony](https://www.bioconductor.org/packages/3.3/bioc/html/lpsymphony.html), from Bioconductor.
+- [**COIN-OR Clp**](http://projects.coin-or.org/Clp) with R package [clpAPI](https://cran.r-project.org/web/packages/clpAPI/index.html).
+- The [**GNU Linear Programming Kit**](http://www.gnu.org/software/glpk/) with R packages [glpkAPI](https://cran.r-project.org/web/packages/glpkAPI/index.html) and [Rglpk](https://cran.r-project.org/web/packages/Rglpk/index.html).
 
 These solvers and packages can be challenging to install and configure correctly, and the specific steps required to do so are platform dependent. To get around this, I've created a [Docker](https://www.docker.com/) image that includes R Studio with all these R packages and their dependencies installed. To run a Docker container based on this image, visit the [repository on Docker Hub](https://hub.docker.com/r/mstrimas/optimizr/). The code in this post can be run inside this Docker container if you have trouble installing the R packages yourself.
 
@@ -294,7 +294,7 @@ results_lpsolve$gap
 #> [1] 7.194245e-14
 # time to solve
 results_lpsolve$time
-#> [1] 1.11
+#> [1] 1.06
 ```
 
 One strength of `lpSolve` is that it's extremely easy to install directly from CRAN; there are no dependencies or external libraries required. However after some testing, I've concluded it isn't a viable option for conservation planning. It doesn't provide a bound on the objective function so it's impossible to assess solution quality. More importantly, for problems only slightly bigger than this extremely simple example, `lpSolve` takes prohibitively long to produce a solution. Finally, there is no ability to specify a stopping condition.
@@ -375,7 +375,7 @@ results_lpsolveapi$gap
 #> [1] 0.03085664
 # time to solve
 results_lpsolveapi$time
-#> [1] 4.17
+#> [1] 3.6
 # compare lower bound with Gurobi
 c(gurobi = results_gurobi$objbound, lpSolveAPI = results_lpsolveapi$objbound)
 #>     gurobi lpSolveAPI 
@@ -448,7 +448,7 @@ results_rsymphony$gap
 #> [1] 2.220446e-16
 # time to solve
 results_rsymphony$time
-#> [1] 0.76
+#> [1] 0.58
 ```
 
 Overall, I like the simple interface that `Rsymphony` uses, however, the installation problems are a major deterrent. Furthermore, there appears to be no means of determining the optimality gap or lower bound.
@@ -518,7 +518,7 @@ results_lpsymphony$gap
 #> [1] 2.220446e-16
 # time to solve
 results_lpsymphony$time
-#> [1] 0.61
+#> [1] 0.58
 ```
 
 My comments on `lpsymphony` are the same as for `Rsymphony` since they're essentially the same package.
@@ -597,7 +597,7 @@ levelplot(clp_sol, main = "clpAPI", margin = FALSE, col.regions = viridis)
 
 <img src="/figures//ilp-field-guide_clpapi-results-1.png" title="plot of chunk clpapi-results" alt="plot of chunk clpapi-results" style="display: block; margin: auto;" />
 
-Since Clp solves the relaxation, with continuous decision variables, we see that fractional protection is allowed here. Also, note that the gap to optimality is negative, indicating the solution is better than optimal. This occurs because the relaxed solution has fewer constraints and therefore can find a better solution than the proper ILP. This isn't what we're looking for, so I won't consider Clp any further in this post. 
+Since Clp solves the relaxation, with continuous decision variables, we see that fractional protection is allowed here. The solution does appear structurally similar to the proper ILP solution though. Also, note that the gap to optimality is negative, indicating the solution is better than optimal. This occurs because the relaxed solution has fewer constraints and therefore can find a better solution than the proper ILP. This isn't what we're looking for, so I won't consider Clp any further in this post. 
 
 ## GLPK
 
@@ -662,7 +662,7 @@ results_rglpk$gap
 #> [1] 0.02218146
 # time to solve
 results_rglpk$time
-#> [1] 0.19
+#> [1] 0.18
 # compare lower bound with Gurobi
 c(gurobi = results_gurobi$objbound, glpkAPI = results_rglpk$objbound)
 #>   gurobi  glpkAPI 
@@ -756,7 +756,7 @@ results_glpkapi$gap
 #> [1] 7.938193e-05
 # time to solve
 results_glpkapi$time
-#> [1] 0.14
+#> [1] 0.1
 # compare lower bound with Gurobi
 c(gurobi = results_gurobi$objbound, glpkAPI = results_glpkapi$objbound)
 #>   gurobi  glpkAPI 
@@ -773,7 +773,7 @@ I'll break down my comments into the R packages I'm including and excluding from
 
 ### General comments
 
-There seems to a general trend of many of these packages being hard to install. Since they all rely on the libraries of external solvers, they need to link to these libraries when being compiled. Unfortunately, this is an extremely non-trivial process. Presumably for hardcore software developers it wouldn't be an issue, but for the average R user it's a major deterrent. I consider myself to be fairly computer savvy, so if this stuff is challenging for me, it's likely impossible for many conservation researchers. I created the [Docker image](Docker Hub](https://hub.docker.com/r/mstrimas/optimizr/) mentioned previously to address this issue.
+There seems to a general trend of many of these packages being hard to install. Since they all rely on the libraries of external solvers, they need to link to these libraries when being compiled. Unfortunately, this is an extremely non-trivial process. Presumably for hardcore software developers it wouldn't be an issue, but for the average R user it's a major deterrent. I consider myself to be fairly computer savvy, so if this stuff is challenging for me, it's likely impossible for many conservation researchers. I created the [Docker image](https://hub.docker.com/r/mstrimas/optimizr/) mentioned previously to address this issue.
 
 After installation challenges, my biggest complaint is that none of these packages provide a direct means of estimating the gap to optimality for the returned solution. I'm frankly baffled that this is the case. All the solvers need to calculate the gap internally for their algorithms to work, so why not return it with the solution? Assessing solution quality seems like the most important feature. I know very little about this field, so I must be missing something. Perhaps most users solve their problems all the way to optimality and therefore don't need to estimate quality. Or, maybe there is a way to access this information that I'm missing.
 

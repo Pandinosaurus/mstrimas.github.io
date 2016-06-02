@@ -10,7 +10,7 @@ tags: r spatial gis
 ---
 
 ```{r echo = F, include = F, eval = F}
-knitr::opts_chunk(collapse = TRUE)
+knitr::opts_chunk$set(collapse = TRUE, warning = TRUE)
 ```
 
 In this post, I explore the unexpected results that can arise in GEOS topology operations from problems with numerical precision or registration in coordinates. It is inspired by a discussion on [this R-sig-Geo thread](http://r-sig-geo.2731867.n2.nabble.com/gUnaryUnion-Not-Dissolving-Correctly-td7589145.html), especially the comments provided by Roger Bivand.  

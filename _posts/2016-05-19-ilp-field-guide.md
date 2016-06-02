@@ -219,8 +219,6 @@ msc_gurobi <- function(cost, rij, targets, gap = 1e-4,
 results_gurobi <- msc_gurobi(cost, rij, targets, gap = 0)
 ```
 
-
-
 Gurobi easily finds the true global optimum almost instantly; no surprise since this was an intentionally simple problem. Let's look at the results.
 
 
@@ -233,7 +231,7 @@ results_gurobi$gap
 #> [1] 2.220446e-16
 # time to solve
 results_gurobi$time
-#> [1] 0.023
+#> [1] 0.021
 # plot
 plot_selection(cost_raster, results_gurobi$x, title = "Gurobi")
 ```
@@ -294,12 +292,12 @@ results_lpsolve$gap
 #> [1] 7.194245e-14
 # time to solve
 results_lpsolve$time
-#> [1] 1.06
+#> [1] 14.025
 ```
 
 One strength of `lpSolve` is that it's extremely easy to install directly from CRAN; there are no dependencies or external libraries required. However after some testing, I've concluded it isn't a viable option for conservation planning. It doesn't provide a bound on the objective function so it's impossible to assess solution quality. More importantly, for problems only slightly bigger than this extremely simple example, `lpSolve` takes prohibitively long to produce a solution. Finally, there is no ability to specify a stopping condition.
 
-#### lpSolveAPI package
+### lpSolveAPI package
 
 An alternative for using `lp_solve` is the `lpSolveAPI` package, which provides a low-level API interface for building and solving linear programs with `lp_solve`. With this package the optimization model is built up with a series of functions calls. Note also that the model object isn't an R object, R just stores a pointer to an external C object. Thus the model has to be built, and the solution accessed, via the set and get methods provided by the package since R can't directly access the model object.
 
@@ -375,7 +373,7 @@ results_lpsolveapi$gap
 #> [1] 0.03085664
 # time to solve
 results_lpsolveapi$time
-#> [1] 3.6
+#> [1] 2.967
 # compare lower bound with Gurobi
 c(gurobi = results_gurobi$objbound, lpSolveAPI = results_lpsolveapi$objbound)
 #>     gurobi lpSolveAPI 
@@ -392,19 +390,49 @@ The lower bound taken from the screen output is just the relaxed solution object
 
 [SYMPHONY](https://projects.coin-or.org/SYMPHONY) is another open-source integer programming solver. It's part of the [Computational Infrastructure for Operations Research](http://www.coin-or.org/) (COIN-OR) project, an initiative to promote development of open-source tools for operations research (a field that includes linear programming).
 
-Two different R packages have been developed to interact with SYMPHONY. On Mac OS I found it challenging to install both Symphony and the R package interfaces. I had to compile SYMPHONY from source, then when I installed the R packages from source the installation failed because it couldn't link to the SYMPHONY libraries. This is where the Docker image comes in handy.
+Two different R packages have been developed to interact with SYMPHONY. On Mac OS I found it challenging to install both SYMPHONY and the R package interfaces. This is where the Docker image comes in handy.
 
 ### RSymphony package
 
-`RSymphony` is the original R SYMPHONY interface and it appears on CRAN. The key function for this package is `Rsymphony_solve_LP()` and the first several arguments specify the optimization model in much the same way as the components of the `model` object in `gurobi`. The remaining arguments can be used to set parameters for the solver, including the stopping conditions.
+`RSymphony` is the original R SYMPHONY interface and it appears on CRAN. It took me several hours to figure out how to get it working on Mac OS and there are many posts online with similar installation issues. Over on StackOverflow I outlined [exactly how I eventually got things working](http://stackoverflow.com/questions/32129191/osx-installing-rsymphony-linking-headers-and-libs/37599406#37599406). 
+
+The key function for this package is `Rsymphony_solve_LP()` and the first several arguments specify the optimization model in much the same way as the components of the `model` object in `gurobi`. The remaining arguments can be used to set parameters for the solver, including the stopping conditions.
+
+Note that `Rsymphony` requires an absolute gap to optimality, while the other solvers use a gap relative to the optimum, which is more intuitive. To address this by first solving the relaxed problem (i.e. with no constraint on decision variables being binary). The objective function for the relaxed solution is a lower bound on the objective function for the fully constrained problem, so multiplying it by the relative gap gives an estimate of the absolute gap. Ideally, I'd like to avoid this workaround since it does add to the execution time, but I see no other solution. 
 
 
 ```r
+# find the relaxed solution
+relaxed_rsymphony <- function(cost, rij, targets) {
+  # bounded between 0 and 1
+  n_pu <- length(cost)
+  bounds <- list(lower = list(ind = seq.int(n_pu), val = rep(0, n_pu)),
+                 upper = list(ind = seq.int(n_pu), val = rep(1, n_pu)))
+  results <- Rsymphony::Rsymphony_solve_LP(
+      # objective function
+      obj = cost,
+      # structural constraints
+      mat = rij,
+      rhs = targets,
+      dir = rep(">=", length(targets)),
+      # decision variables between 0 and 1
+      types = "C",
+      bounds = bounds,
+      # goal is to minimize objective function
+      max = FALSE
+    )
+  list(x = results$solution, objval = results$objval)
+}
+# solve the actual problem
 msc_rsymphony <- function(cost, rij, targets,
                           gap = 1e-4,
                           time_limit = Inf,
                           first_feasible = FALSE,
                           bound = NA) {
+  # convert relative to absolute gap
+  relaxed <- relaxed_rsymphony(cost, rij, targets)
+  gap <- gap * relaxed$objval
+  rm(relaxed)
   t <- system.time(
     results <- Rsymphony::Rsymphony_solve_LP(
       # objective function
@@ -442,28 +470,54 @@ results_rsymphony <- msc_rsymphony(cost, rij, targets,
 ```r
 # check that correct optimal solution was found
 all.equal(results_rsymphony$x, results_gurobi$x)
-#> [1] TRUE
+#> [1] "Mean relative difference: 2"
 # gap to optimality
 results_rsymphony$gap
-#> [1] 2.220446e-16
+#> [1] 0.001121979
 # time to solve
 results_rsymphony$time
-#> [1] 0.58
+#> [1] 0.169
 ```
 
 Overall, I like the simple interface that `Rsymphony` uses, however, the installation problems are a major deterrent. Furthermore, there appears to be no means of determining the optimality gap or lower bound.
 
 ### lpsymphony package
 
-`lpsymphony` is almost identical to `Rsymphony`, however, the package ostensibly includes SYMPHONY itself, which is meant to ease installation. In practice, on Mac OS and Linux, I didn't find it any easier to install. In addition, installing SYMPHONY directly ensures you get the most recent version. Finally, `lpsymphony` is on [Bioconductor](https://www.bioconductor.org/packages/3.3/bioc/html/lpsymphony.html), not CRAN, so can't be installed with `install.packages()`. For these reasons I don't see the need to use `lpsymphony`, but I include it here for completeness. On the up side, it does have a nice [vignette](https://www.bioconductor.org/packages/3.3/bioc/vignettes/lpsymphony/inst/doc/lpsymphony.pdf), which `Rsymphony` doesn't have.
+`lpsymphony` is almost identical to `Rsymphony`, however, the package ostensibly includes SYMPHONY itself, which is meant to ease installation. On Linux, I didn't find it any easier to install, but on Mac and Windows it appears to work much better. However, installing SYMPHONY directly ensures you get the most recent version. Also, `lpsymphony` is on [Bioconductor](https://www.bioconductor.org/packages/3.3/bioc/html/lpsymphony.html), not CRAN, so can't be installed with `install.packages()`. For these reasons I'm going to stick with `rsymphony` for now, but I include it here for completeness. On the up side, it does have a nice [vignette](https://www.bioconductor.org/packages/3.3/bioc/vignettes/lpsymphony/inst/doc/lpsymphony.pdf), which `Rsymphony` doesn't have.
 
 
 ```r
+# find the relaxed solution
+relaxed_lpsymphony <- function(cost, rij, targets) {
+  # bounded between 0 and 1
+  n_pu <- length(cost)
+  bounds <- list(lower = list(ind = seq.int(n_pu), val = rep(0, n_pu)),
+                 upper = list(ind = seq.int(n_pu), val = rep(1, n_pu)))
+  results <- lpsymphony::lpsymphony_solve_LP(
+      # objective function
+      obj = cost,
+      # structural constraints
+      mat = rij,
+      rhs = targets,
+      dir = rep(">=", length(targets)),
+      # decision variables between 0 and 1
+      types = "C",
+      bounds = bounds,
+      # goal is to minimize objective function
+      max = FALSE
+    )
+  list(x = results$solution, objval = results$objval)
+}
+# solve the actual problem
 msc_lpsymphony <- function(cost, rij, targets,
                           gap = 1e-4,
                           time_limit = Inf,
                           first_feasible = FALSE,
                           bound = NA) {
+  # convert relative to absolute gap
+  relaxed <- relaxed_lpsymphony(cost, rij, targets)
+  gap <- gap * relaxed$objval
+  rm(relaxed)
   t <- system.time(
     results <- lpsymphony::lpsymphony_solve_LP(
       # objective function
@@ -518,7 +572,7 @@ results_lpsymphony$gap
 #> [1] 2.220446e-16
 # time to solve
 results_lpsymphony$time
-#> [1] 0.58
+#> [1] 0.108
 ```
 
 My comments on `lpsymphony` are the same as for `Rsymphony` since they're essentially the same package.
@@ -588,7 +642,7 @@ results_clpapi$gap
 #> [1] -0.02993301
 # time to solve
 results_clpapi$time
-#> [1] 0
+#> [1] 0.003
 # plot
 clp_sol <- cost_raster
 clp_sol[] <- results_clpapi$x
@@ -662,7 +716,7 @@ results_rglpk$gap
 #> [1] 0.02218146
 # time to solve
 results_rglpk$time
-#> [1] 0.18
+#> [1] 0.247
 # compare lower bound with Gurobi
 c(gurobi = results_gurobi$objbound, glpkAPI = results_rglpk$objbound)
 #>   gurobi  glpkAPI 
@@ -724,6 +778,7 @@ msc_glpkapi <- function(cost, rij, targets,
   t <- system.time({
     screen_out <- capture.output(glpkAPI::solveMIPGLPK(model))
   })
+  print(screen_out)
   # extract lower bound from screen output
   if (is.na(bound)) {
     bound <- stringr::str_subset(screen_out, "^\\+")
@@ -736,15 +791,15 @@ msc_glpkapi <- function(cost, rij, targets,
                   x = glpkAPI::mipColsValGLPK(model),
                   objval = glpkAPI::mipObjValGLPK(model),
                   objbound = bound,
-                  gap = (glpkAPI::mipObjValGLPK(model) / bound - 1),
-                  screen_out = screen_out)
+                  gap = (glpkAPI::mipObjValGLPK(model) / bound - 1))
   glpkAPI::delProbGLPK(model)
   return(results)
 }
 results_glpkapi <- msc_glpkapi(cost, rij, targets)
+#> [1] "[1] 14"
 ```
 
-`glpkAPI` finds the correct optimal solution, and does so quickly. As with `Rglpk`, I've had to extract the lower bound from the screen output. I compare it to the Gurobi lower bound to demonstrate that Gurobi gives a better approximation.
+`glpkAPI` finds the correct optimal solution, and does so quickly. As with `Rglpk`, the lower bound from the screen output is output to screen, however, unlike `Rglpk` it goes to the C standard out not the R standard out so can't easily be captured.
 
 
 ```r
@@ -753,14 +808,10 @@ all.equal(results_glpkapi$x, results_gurobi$x)
 #> [1] TRUE
 # gap to optimality
 results_glpkapi$gap
-#> [1] 7.938193e-05
+#> [1] NA
 # time to solve
 results_glpkapi$time
-#> [1] 0.1
-# compare lower bound with Gurobi
-c(gurobi = results_gurobi$objbound, glpkAPI = results_glpkapi$objbound)
-#>   gurobi  glpkAPI 
-#> 19959.27 19957.69
+#> [1] 0.26
 ```
 
 `glpkAPI` has a lot going for it: it's easy to install, feature rich, and quick. The interface can be confusing to use and it took me some sleuthing to figure out how to get everything working as desired. However, this is the benefit of the wrapper function: all that confusion can be abstracted away from the end user. The main thing it's missing it a good method for directly accessing the objective function lower bound.
@@ -785,7 +836,7 @@ Even from the simple testing I've done thus far, it's clear these packages aren'
 
 - `Rglpk`: easy to install, an intuitive interface, fast, and able to handle larger problems. This is an excellent package for a excellent solver. If you're looking to solve small- to medium-sized problems all the way to optimality, and you don't want to worry about any of the more advanced settings, this is your best option. Unfortunately, conservation prioritization problems can be huge, so I need a package that provides access to these more advanced settings, especially the stopping conditions.
 - `lpSolve`: this package is extremely easy to install and use, and it could be a good option for solving simple optimization problems. Unfortunately, it can't handle larger problems and doesn't provide access to any stopping conditions.
-- `lpsymphony`: excluded because it's redundant since it's essentially identical to `Rsymphony`. It's meant to be easier to install, but I didn't find this to be the case on Mac or Linux. A nice package though.
+- `lpsymphony`: excluded because it's redundant since it's essentially identical to `Rsymphony`. If it was on CRAN not Bioconductor, I go with this package instead.
 - `clpAPI`: doesn't allow for integer constraints, so of limited use for conservation prioritization. This package could be a good option if you're trying to solve linear programs with continuous variables. I did find it hard to install though, and the interface is somewhat confusing because it formulates the optimization model slightly differently than all the other solvers.
 
 ### Include

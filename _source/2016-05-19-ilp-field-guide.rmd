@@ -670,7 +670,7 @@ results_rglpk$gap
 # time to solve
 results_rglpk$time
 # compare lower bound with Gurobi
-c(gurobi = results_gurobi$objbound, glpkAPI = results_rglpk$objbound)
+c(gurobi = results_gurobi$objbound, Rglpk = results_rglpk$objbound)
 ```
 
 `Rglpk` benefits from a simple interface and an easy install process, however, it's lacking some important features. In particular, there's no way to set stopping conditions or to assess solution quality. However, lower bounds at each step are printed to screen as the algorithm progresses, so I've captured the output and parsed out the last bound listed. Unfortunately, the lower bound *after* the algorithm finishes isn't listed, hence the bound I extract is only an approximation and will generally be more lower (i.e. more conservative) than the true lower bound.

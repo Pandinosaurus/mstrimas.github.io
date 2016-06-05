@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Open-source Integer Linear Progamming Solver Performance Comparison"
+title: "Open-source ILP Solver Performance Comparison"
 published: true
 excerpt: >
   Comparing the performance of open-source integer linear programming solvers.
@@ -18,20 +18,22 @@ setwd("_source/")
 knitr::opts_chunk$set(dev = "png", message = FALSE)
 ```
 
-In this post I'll compare alternative integer linear programming (ILP) solvers for conservation planning. The goal is to develop a tool to solve the Marxan reserve design problem using ILP rather than simulated annealing. Unlike simulated annealing, ILP can find the true global optimum of an optimization problem or, if time constraints are an issue, it can return a solution that is within a specified distance from the optimum. This ability to evaluate the quality of a solution (i.e. distance to optimality), makes IP an excellent candidate for conservation planning.
+Conservation prioritization is fundamentally an optimization problem: what actions should we take to get the best possible conservation outcome for the lowest possible cost. In the context of protected area design, the goal is to identify the suite of sites that meets a set of biodiversity targets for the lowest possible cost. This is known as an integer linear progamming (ILP) problem in the language of operations research and mathematical optimization. A wide variety of tools (ranging from free to quite expensive) exist to solve such problems. In this series of posts I am invesitgating which tools are best for solving conservation prioritization problems in R.
 
-In a [previous post](http://strimas.com/r/gurobi/), I demonstrated how to use the commercial optimization software [Gurobi](http://www.gurobi.com/). Gurobi is great, but expensive, so in this post I'll explore solving the reserve design problem using free and open-source solvers.
+In my [first post](http://strimas.com/prioritization/gurobi/), I demonstrated how to use the commercial optimization software [Gurobi](http://www.gurobi.com/) to solve the Marxan reserve design problem in R. Gurobi is great, but expensive, so in the [next post](http://strimas.com/prioritization/ilp-field-guide/) I explored seven R packages that interface with 4 open-source ILP solvers. That post left me with three R packages that are potential candidates for a free alternative to Gurobi. In this post, I'll focus on comparing the performance of these solvers.
 
 ## Packages
 
 ```{r packages, message=FALSE}
 library(dplyr)
+library(tidyr)
 library(sp)
 library(raster)
 library(rasterVis)
 library(viridis)
 library(slam)
 library(protectr) # devtools::install_github("mstrimas/protectr")
+library(ggplot2)
 # solvers
 library(gurobi)
 library(lpSolveAPI)
@@ -46,7 +48,7 @@ First, I'll set up the problem and prepare some data.
 
 ## Data generation
 
-To test the various methods, I'll generate 9 species distributions and a cost layer over a 10x10 grid of planning units (100 total). I've intentionally chosen an extremely simplified problem to start with to ensure that all the solvers will be able to handle it; later we'll look at different problem sizes. Although fabricated, these layers have some spatial auto-correlation built it to make them semi-realistic.
+To test the various methods, I'll generate 9 species distributions and a cost layer over a 100x100 grid of planning units (10,000 total). Although fabricated, these layers have some spatial auto-correlation built it to make them semi-realistic.
 
 ```{r species}
 # raster template
@@ -65,7 +67,8 @@ levelplot(species, main = 'Species Distributions', layout = c(3, 3),
           col.regions = c("grey20", "#fd9900"), colorkey = FALSE)
 # genrate cost layer
 cost_raster <- gaussian_field(r, 20, mean = 1000, variance = 500) %>% 
-  setNames("cost")
+  setNames("cost") %>% 
+  {.[[1]]}
 levelplot(cost_raster, main = "Cost", margin = FALSE, col.regions = viridis)
 ```
 
@@ -86,18 +89,18 @@ targets <- 0.3 * cellStats(species, "sum")
 Finally, I convert the cost raster to a numeric vector.
 
 ```{r cost}
-cost <- cost_raster[[1]][]
+cost <- cost_raster[]
 ```
 
 # Solvers
 
-In [my previous post](http://strimas.com/prioritization/ilp-field-guide/), I looked at four linear progamming solvers, accessed via seven R packages. For a [variety of reasons](http://strimas.com/prioritization/ilp-field-guide/#conclusions) outlined in that post, I excluded several packages, leaving me with three potential candidate R packages for an open-source alternative to Gurobi:
+In [my previous post](http://strimas.com/prioritization/ilp-field-guide/), I looked at four linear programming solvers, accessed via seven R packages. For a [variety of reasons](http://strimas.com/prioritization/ilp-field-guide/#conclusions) outlined in that post, I excluded several packages, leaving me with three potential candidate R packages for an open-source alternative to Gurobi:
 
 - **Solver:** `lp_solve`; **R Package:** `lpSolveAPI`
 - **Solver:** SYMPHONY; **R Package:** `Rsymphony`
 - **Solver:** GLPK; **R Package:** `glpkAPI`
 
-In [previous post](http://strimas.com/prioritization/ilp-field-guide/), I went throught the process of building up standardized wrapper functions for solving the reserve design problem using these ILP solvers. Consult that post for the function definitions, here I just give the signatures of the wrapper functions.
+In [that post](http://strimas.com/prioritization/ilp-field-guide/), I went through the process of building up standardized wrapper functions for solving the reserve design problem using these ILP solvers. Consult that post, or the [source code](https://github.com/mstrimas/mstrimas.github.io/blob/master/_source/2016-05-27-ilp-performance.rmd) for this post, for the function definitions. Here I just give the signatures of the wrapper functions.
 
 ```{r wrappers, echo=FALSE}
 # gurobi
@@ -205,44 +208,26 @@ msc_lpsolve <- function(cost, rij, targets,
   #lpSolveAPI::delete.lp(model)
   return(results)
 }
-# clp
-solve_relaxed_clp <- function(cost, rij, targets) {
-  # construct model with given number of constraints (i.e. features)
-  # and decision variables (i.e. planning units)
-  model <- clpAPI::initProbCLP()
-  # goal is to minimize objective function, max = -1, min = 1
-  clpAPI::setObjDirCLP(model, lpdir = 1)
-  # in vector of non-zero constraint matrix elements need indices for where
-  # new columns start
-  new_row <- diff(rij$j)
-  new_row_i <- which(new_row != 0)
-  col_starts <- c(0, rep(new_row_i, times = new_row[new_row_i]), length(rij$i))
-  # load optimization problem
-  clpAPI::loadProblemCLP(model,
-                         # constraint matrix dimensions
-                         ncols = ncol(rij), nrows = nrow(rij),
-                         # row indices for non-zero elements, 0-indexed
-                         ia = (rij$i - 1), 
-                         # start indices of new columns, 0-indexed
-                         ja = col_starts,
-                         ra = rij$v, 
-                         # bounds on decision variables
-                         lb = rep(0, length(cost)), ub = rep(1, length(cost)),
-                         # objective function coefficients
-                         obj_coef = cost,
-                         # bounds on contraints, i.e. rhs of contraint
-                         rlb = targets, rub = NULL)
-  clpAPI::setLogLevelCLP(model, amount = 0)
-  # solve
-  t <- system.time(
-    clpAPI::solveInitialCLP(model)
-  )
-  # prepare return object
-  results <- list(time = summary(t)[["user"]],
-                  x = clpAPI::getColPrimCLP(model),
-                  objval = clpAPI::getObjValCLP(model))
-  clpAPI::delProbCLP(model)
-  return(results)
+# find the relaxed solution
+relaxed_symphony <- function(cost, rij, targets) {
+  # bounded between 0 and 1
+  n_pu <- length(cost)
+  bounds <- list(lower = list(ind = seq.int(n_pu), val = rep(0, n_pu)),
+                 upper = list(ind = seq.int(n_pu), val = rep(1, n_pu)))
+  results <- Rsymphony::Rsymphony_solve_LP(
+      # objective function
+      obj = cost,
+      # structural constraints
+      mat = rij,
+      dir = rep(">=", length(targets)),
+      rhs = targets,
+      # decision variables between 0 and 1
+      types = "C",
+      bounds = bounds,
+      # goal is to minimize objective function
+      max = FALSE
+    )
+  list(x = results$solution, objval = results$objval)
 }
 # symphony
 msc_symphony <- function(cost, rij, targets,
@@ -253,7 +238,8 @@ msc_symphony <- function(cost, rij, targets,
   t <- system.time({
     # symphony takes an absolute gap, but not a relative gap
     # estimate absolute gap from objective function for relaxed solution
-    relaxed <- solve_relaxed_clp(cost, rij, targets)
+     # convert relative to absolute gap
+    relaxed <- relaxed_symphony(cost, rij, targets)
     gap <- gap * relaxed$objval
     rm(relaxed)
     results <- Rsymphony::Rsymphony_solve_LP(
@@ -261,8 +247,8 @@ msc_symphony <- function(cost, rij, targets,
       obj = cost,
       # structural constraints
       mat = rij,
-      rhs = targets,
       dir = rep(">=", length(targets)),
+      rhs = targets,
       # binary decision variables
       types = "B",
       # goal is to minimize objective function
@@ -286,7 +272,8 @@ msc_symphony <- function(cost, rij, targets,
 msc_glpk <- function(cost, rij, targets,
                      gap = 1e-4,
                      time_limit = Inf,
-                     bound = NA) {
+                     bound = NA,
+                     filename = NULL) {
   # initialize an empty model
   model <- glpkAPI::initProbGLPK()
   glpkAPI::setProbNameGLPK(model, "reserve-design")
@@ -313,28 +300,24 @@ msc_glpk <- function(cost, rij, targets,
   glpkAPI::setRowsBndsGLPK(model, i = seq_along(targets),
                            lb = targets, ub = NULL,
                            type = rep(glpkAPI::GLP_LO, length(targets)))
+  # write to mps format
+  if  (!is.null(filename)) {
+    glpkAPI::writeMPSGLPK(model, glpkAPI::GLP_MPS_FILE, filename)
+  }
   # presolve and automatically calculate relaxed solution
   # otherwise glpkAPI::solveSimplexGLPK(model) must be called first
-  glpkAPI::setMIPParmGLPK(PRESOLVE, GLP_ON)
-  glpkAPI::setMIPParmGLPK(MSG_LEV, GLP_MSG_ALL)
+  glpkAPI::setMIPParmGLPK(glpkAPI::PRESOLVE, glpkAPI::GLP_ON)
+  glpkAPI::setMIPParmGLPK(glpkAPI::MSG_LEV, glpkAPI::GLP_MSG_ALL)
+  #glpkAPI::solveSimplexGLPK(model)
   # gap to optimality
-  glpkAPI::setMIPParmGLPK(MIP_GAP , gap)
+  glpkAPI::setMIPParmGLPK(glpkAPI::MIP_GAP , gap)
   # stop after specified number of seconds, convert to milliseconds
   if (is.finite(time_limit)) {
-    glpkAPI::setMIPParmGLPK(TM_LIM, 1000 * time_limit)
+    glpkAPI::setMIPParmGLPK(glpkAPI::TM_LIM, 1000 * time_limit)
   }
   
   # solve
-  t <- system.time({
-    screen_out <- capture.output(glpkAPI::solveMIPGLPK(model))
-  })
-  # extract lower bound from screen output
-  if (is.na(bound)) {
-    bound <- stringr::str_subset(screen_out, "^\\+")
-    bound <- stringr::str_subset(bound, ">=\\s+(-?[+.e0-9]+)")
-    bound <- stringr::str_match(bound, ">=\\s+(-?[+.e0-9]+)")
-    bound <- ifelse(nrow(bound) > 0, as.numeric(bound[nrow(bound), 2]), NA)
-  }
+  t <- system.time(glpkAPI::solveMIPGLPK(model))
   # prepare return object
   results <- list(time = summary(t)[["user"]],
                   x = glpkAPI::mipColsValGLPK(model),
@@ -392,10 +375,8 @@ For simple problems, these solvers will all find the true optimal solution. Howe
 
 I'll start by finding the exact solution with Gurobi. This will facilitate evaluating how well each solver does.
 
-```{r exact, eval=-1:2, echo=-2:3}
+```{r exact, results="hide"}
 exact <- msc_gurobi(cost, rij, targets, gap = 0)
-saveRDS(exact, "data/ilp-performance/exact.rds")
-exact <- readRDS("data/ilp-performance/exact.rds")
 exact_val <- exact$objval
 ```
 
@@ -430,7 +411,7 @@ Usually time is the limiting factor in an analysis, and specifying the run time 
 
 ## First feasible
 
-These solvers all start by solving the relaxed problem, which is the optimization problem without the constraint that all the decision variables are integer, then work to find solutions that do meet the integrality constraints. The first solution that meets all the constraints is called the first feasible solution. All the packages, except `glpkAPI`, give the option of returning this solution. Unless you're lucky this won't be the true optimuum, but it's often pretty good because it's not just any feasible solution, it's one derived from the optimal relaxed solution.
+These solvers all start by solving the relaxed problem, which is the optimization problem without the constraint that all the decision variables are integer, then work to find solutions that do meet the integrality constraints. The first solution that meets all the constraints is called the first feasible solution. All the packages, except `glpkAPI`, give the option of returning this solution. Unless you're lucky this won't be the true optimum, but it's often pretty good because it's not just any feasible solution, it's one derived from the optimal relaxed solution.
 
 ```{r first-feasible, results='hide'}
 ff_lpsolve <- msc_lpsolve(cost, rij, targets, first_feasible = TRUE,
@@ -454,7 +435,7 @@ ff_lpsolve$objval / tl_lpsolve$objval
 ff_symphony$objval / tl_symphony$objval
 ```
 
-Requesting the first feasible solution is a good approach if you're more concerned with time that getting a solution close to optimality. This will get you a solution that satifies all the constraints quickest.
+Requesting the first feasible solution is a good approach if you're more concerned with time that getting a solution close to optimality. This will get you a solution that satisfies all the constraints quickest.
 
 ## Gap to optimality
 
@@ -469,19 +450,19 @@ gap_symphony <- msc_symphony(cost, rij, targets, gap = 0.001, bound = exact_val)
 gap_glpk <- msc_glpk(cost, rij, targets, gap = 0.001, bound = exact_val)
 ```
 
-Note that for all three solvers, the 5 second run above was sufficient to get a solution within 1% of optimality. Despite this, when I ran `lpSolveAPI` for several minutes it never returned a solution, so I had to enforce a 60 second time limitThe gap that these solvers calculate is an upper bound, which is refined as the algorithm progresses. In contrast, I know exactly how far these solutions are from optimality since I found the optimum with Gurobi. Given that `lp_solve` isn't stopping execution despite having a solution within the specified gap, it suggests that something is wrong. Either `lp_solve` isn't doing a great job of estimating the objective function bounds, or there's an issue with the interface.
+Note that for all three solvers, the 5 second run above was sufficient to get a solution within 1% of optimality. Despite this, when I ran `lpSolveAPI` for several minutes it never returned a solution, so I had to enforce a 60 second time limit. The gap that these solvers calculate is an upper bound, which is refined as the algorithm progresses. In contrast, I know exactly how far these solutions are from optimality since I found the optimum with Gurobi. Given that `lp_solve` isn't stopping execution despite having a solution within the specified gap, it suggests that something is wrong. Either `lp_solve` isn't doing a great job of estimating the objective function bounds, or there's an issue with the interface.
 
 In addition, the gap that SYMPHONY takes is an absolute gap, rather than a relative gap like the other solvers. I've gotten around this by first solving the relaxed problem (i.e. with no constraint on decision variables being binary) with [Clp](https://projects.coin-or.org/Clp). The objective function for the relaxed solution is a lower bound on the objective function for the fully constrained problem, so multiplying it by the relative gap gives an estimate of the absolute gap. Ideally, I'd like to avoid this workaround since it does add to the execution time, but I see no other solution. 
 
-```{r tl_times}
+```{r gap_times}
 gap_lpsolve$time # set to stop at 60 seconds
 gap_symphony$time
 gap_glpk$time
 ```
 
-All the solvers do much better than the desired 1%.
+All the solvers do much better than the desired 0.1% gap.
 
-```{r tl_gap}
+```{r gap_gap}
 100 * gap_lpsolve$gap
 100 * gap_symphony$gap
 100 * gap_glpk$gap
@@ -494,13 +475,13 @@ While all these solvers must internally calculate a lower bound on the objective
 - `gurobi`: conveniently returned as a component of the Gurobi results object (`result$objbound`).
 - `lpSolveAPI`: printed to screen while lp_solve runs, however, it only allows for precision up to a tenth of a percent, anything below 0.1% appears as 0.0%. I extract this from the screen output with regular expressions.
 - `Rsymphony`: not provided at all.
-- `glpkAPI`: printed to screen when GLPK finishes, however, anthing below 0.1% appears as "< 0.1%). I extract this from the screen output with regular expressions.
+- `glpkAPI`: printed to screen when GLPK finishes, however, not accessible because it's sent to C standard output not R standard output.
 
-So, really none of the open-source solvers really do a great job in this department, either the bound is missing or returned in a simplified form.
+So, really none of the open-source solvers do a great job in this department, either the bound is missing or returned in a simplified form.
 
 ## Summary
 
-Here are some general takeways from the above exploration with respect to stopping condition:
+Here are some general takeaways from the above exploration with respect to stopping condition:
 
 - `gurobi` can be used with a gap, a time limit, or to return the first feasible solution.
 - `lpSolveAPI` can only be used to return the first feasible solution. Setting a gap doesn't appear to work and, even with a long time limit, `lp_solve` doesn't improve upon this first feasible solution.
@@ -509,43 +490,123 @@ Here are some general takeways from the above exploration with respect to stoppi
 
 # Performance comparison
 
-```{r}
-x_rsymphony <- msc_symphony(cost, rij, targets, gap = 0.001, time_limit = 120,
-                            bound = exact_val)
-x_glpkapi <- msc_glpk(cost, rij, targets, gap = 0.001, time_limit = 240),
-                      bound = exact_val)
+Now let's look at how these solvers stack up in terms of performance. I'll dis-aggregate the study grid into successively smaller grid cells (i.e. more decision variables) and solve the reserve design problem to within 0.1% of optimality using all the solvers except `lpSolveAPI` since it's quite slow.
+
+```{r performance, eval=F}
+# data frame template to store results
+comp_perf <- data_frame(solver = character(),
+                        dimensions = integer(),
+                        n = integer(),
+                        time = numeric(),
+                        objval = numeric(),
+                        objbound = numeric(),
+                        gap = numeric())
+# iteratively disaggregate and solve
+for (i in seq(1, 10, by = 3)) {
+  message(sprintf("i = %i", i))
+  dims <- 100 * i
+  # disaggregate
+  cost_tmp <- disaggregate(cost_raster, i)
+  species_tmp <- disaggregate(species, i)
+  
+  # prepare inputs
+  rij <- as.simple_triplet_matrix(t(unname(species_tmp[])))
+  targets <- 0.3 * cellStats(species_tmp, "sum")
+  cost <- cost_tmp[]
+  rm(cost_tmp, species_tmp)
+  
+  # solve
+  # gurobi
+  message("solve gurobi")
+  sol_gurobi <- msc_gurobi(cost, rij, targets, gap = 0.001)
+  gurobi_bound <- sol_gurobi$objbound
+  sol_gurobi$x <- NULL
+  comp_perf <- list(solver = "gurobi",
+                    dimensions = dims,
+                    n = dims^2) %>%
+    c(sol_gurobi) %>% 
+    bind_rows(comp_perf, .)
+  rm(sol_gurobi); gc()
+  # symphony
+  message("solve symphony")
+  sol_symphony <- msc_symphony(cost, rij, targets, gap = 0.001,
+                               bound = gurobi_bound)
+  sol_symphony$x <- NULL
+  comp_perf <- list(solver = "symphony",
+                    dimensions = dims,
+                    n = dims^2) %>% 
+    c(sol_symphony) %>% 
+    bind_rows(comp_perf, .)
+  rm(sol_symphony); gc()
+  # glpk
+  message("solve glpk")
+  fname <- sprintf("data/ilp-performance/model-dim-%i.mps", dims)
+  sol_glpk <- msc_glpk(cost, rij, targets, gap = 0.001,
+                       bound = gurobi_bound,
+                       filename = fname)
+  sol_glpk$x <- NULL
+  comp_perf <- list(solver = "glpk",
+                    dimensions = dims,
+                    n = dims^2) %>% 
+    c(sol_glpk) %>% 
+    bind_rows(comp_perf, .)
+  rm(sol_glpk); gc()
+}
+saveRDS(comp_perf, "data/ilp-performance/comp-perf.rds")
 ```
 
-
-```{r}
-results_gurobi <- msc_gurobi(cost, rij, targets, time_limit = 10)
-results_lpsolveapi <- msc_lpsolveapi(cost, rij, targets, time_limit = 10)
-results_rsymphony <- msc_rsymphony(cost, rij, targets, time_limit = 10)
-results_glpkapi <- msc_glpkapi(cost, rij, targets, time_limit = 10)
-
-cost_big <- disaggregate(cost_raster, 10) %>% 
-  {.[[1]][]}
-species_big <- disaggregate(species, 10)
-rij_big <- as.simple_triplet_matrix(t(unname(species_big[])))
-targets_big <- 0.3 * cellStats(species_big, "sum")
-
-results_gurobi <- msc_gurobi(cost_big, rij_big, targets_big,
-                             gap = 1e-8, time_limit = 100)
-results_lpsolveapi <- msc_lpsolveapi(cost_big, rij_big, targets_big,
-                                     gap = 0.001, time_limit = 100,
-                                     bound = results_gurobi$objbound)
-# results_rsymphony <- msc_rsymphony(cost_big, rij_big, targets_big,
-#                                    gap = 0.001, time_limit = 100,
-#                                      bound = results_gurobi$objbound)
-results_glpkapi <- msc_glpkapi(cost_big, rij_big, targets_big,
-                               gap = 0.001, time_limit = 100,
-                                     bound = results_gurobi$objbound)
-results_gurobi$gap
-results_lpsolveapi$gap
-results_glpkapi$gap
-
-results_gurobi$time
-results_lpsolveapi$time
-results_glpkapi$time
+```{r load-results, echo=F}
+comp_perf <- readRDS("data/ilp-performance/comp-perf.rds")
 ```
 
+Let's take a look at the results:
+
+```{r performance-results, fig.width=600/96, fig.height=600/96}
+comp_perf %>% 
+  mutate(solver = reorder(solver, time)) %>% 
+  ggplot(aes(x = n/1000, y = time/60, colour = solver)) +
+    geom_point() +
+    geom_line() +
+    scale_x_log10(breaks = c(10, 100, 1000), labels = scales::comma) +
+    scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100), labels = scales::comma) +
+    scale_color_brewer("ILP Solver", palette = "Set1") +
+    labs(x = "# of planning units (1000's)",
+         y = "Time (minutes)",
+         title = "ILP Performance Comparison (Gap = 0.1%)") +
+    theme(text = element_text(family = "Helvetica Neue Light"),
+          legend.position = c(0.15, 0.85),
+          legend.background = element_rect(colour = "black"),
+          legend.text = element_text(size = 16),
+          legend.title = element_text(size = 16, face = "bold"),
+          legend.key.size = unit(2, units = "lines"))
+```
+
+As expected, Gurobi is the clear winner here and, of the open source solvers, SYMPHONY does the best. Note that this is on a log-log scale, so the differences between solvers are actually huge. Looking at the solve times in **minutes** in tabular form:
+
+```{r performance-table}
+comp_perf %>% 
+  mutate(solver = reorder(solver, time), time = time / 60) %>% 
+  dplyr::select(solver, time, n) %>% 
+  spread(solver, time) %>% 
+  knitr::kable(digits = 1, format.args = list(big.mark = ","))
+```
+
+For a problem with a million planning units, GLPK takes 1.5 hours, SYMPHONY takes 7 minutes, and Gurobi just a few seconds. One interesting observation not reflected in these data is that GLPK spends the majority of its time solving the relaxed problem. In contrast, SYMPHONY solves the relaxed problem quite quickly.
+
+# Conclusion
+
+This posts confirms that Gurobi is clearly much better than the open-source alternatives. It solves large problems in a matter of seconds that the other solves either can't solve or take several orders of magnitude longer to solve. In addition, we've been looking at a simplified linear objective function, but the real Marxan objective function is quadratic. None of the open source solvers I've looked at thus far can handle quadratic problems, however, Gurobi can.
+
+The impressive performance of Gurobi aside, conservation planners may need or want to use free, open-source software. In this post, and the [previous](http://strimas.com/prioritization/ilp-field-guide/), I explored seven R packages that interface with four open-source solvers. I've reduced that field of seven to two possible candidates for a Gurobi alternative for conservation prioritization:
+
+- The R package `Rsymphony`, which interfaces with the SYMPHONY solver, can handle large prioritization problems reasonably quickly. The interface is intuitive and easy to use, however, the ability to customize algorithm parameters is limited. The downside is that it can be challenging to install. In some cases, `lpsymphony` on Bioconductor may be an easier-to-install alternative.
+- In contrast, the `glpkAPI` package is easier to install and provides fine scale control of algorithm parameters. It can handle large prioritization problems, but the run time is slow above a couple hundred thousands planning units.
+
+Neither solver returns gap to optimality or a lower bound on the solution.
+## Next steps
+
+Moving forward, there are three things I'd like to investigate further:
+
+1. Can tweaking the parameters of the solving algorithms lead to significant performance benefits?
+2. I haven't covered the [SCIP](http://scip.zib.de) solver because it doesn't have an R interface. Several sources have suggested to me that this is the best free solver. I'd like to test SCIP on the same set of prioritization problems as in this post. If it does prove to be much faster, I'll look into how hard it would be to create an R interface.
+3. Finally, I hope to build an R package that provides access to a variety of solvers for conservation prioritization.

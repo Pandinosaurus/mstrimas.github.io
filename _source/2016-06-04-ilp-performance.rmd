@@ -39,7 +39,7 @@ library(gurobi)
 library(lpSolveAPI)
 library(Rsymphony)
 library(glpkAPI)
-set.seed(1)
+set.seed(1000)
 ```
 
 # Preparation

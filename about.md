@@ -6,7 +6,7 @@ permalink: /about/
 
 <img src="/img/matt-grey.jpg" alt="me" class="center" style="width:80%;" />
 
-I'm a Vancouver-based conservation researcher currently working on a master's with [Jedediah Brodie](http://jedediahbrodie.weebly.com/) in the [Zoology Department](http://www.zoology.ubc.ca/) at UBC. My research focuses on the effects of human-induced land use change on ecosystems and how protected areas can be used as a tool to mitigate these negative impacts. Prior to this, I studied physics at the undergraduate and graduate levels, which I credit with shaping how I think and approach problems.  
+I'm a Vancouver-based conservation researcher who recently finished a master's with [Jedediah Brodie](http://jedediahbrodie.weebly.com/) in the [Zoology Department](http://www.zoology.ubc.ca/) at UBC. My research focuses on the effects of human-induced land use change on ecosystems and how protected areas can be used as a tool to mitigate these negative impacts. Prior to this, I studied physics at the undergraduate and graduate levels, which I credit with shaping how I think and approach problems.  
 
 I'm a firm believer in incorporating decision science into conservation, an approach championed by researchers such as [Hugh Possingham](http://www.possinghamlab.org/). I believe in the importance of considering cost-benefit trade offs in conservation, taking a systematic approach to decision making, and in always prefacing ecological research by considering the potential management implications.  
 

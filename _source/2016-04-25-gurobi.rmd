@@ -386,7 +386,7 @@ gurobi_solve <- function(features, cost, targets, blm, edge_factor = 1,
 }
 blm = 150
 target = 0.3
-results <- gurobi_solve(species, cost, targets = target, blm = blm)
+results <- gurobi_solve(species, cost, targets = target, blm = 100)
 ```
 
 ## Results object
@@ -419,7 +419,7 @@ r_solution <- ratify(r_solution)
 rat <- levels(r_solution)[[1]]
 rat$status <- c("Not Selected", "Selected")
 levels(r_solution) <- rat
-levelplot(r_solution, main = "Gurobi Solution: 5% gap to optimality",
+levelplot(r_solution, main = NA,
           scales = list(draw = FALSE),
           col.regions = c("grey40", "#4DAF4A"),
           colorkey = list(space = "bottom", height = 1))

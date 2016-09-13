@@ -3,15 +3,15 @@ layout: post
 title: "RStudio in the Cloud I: Amazon Web Services"
 published: true
 excerpt: >
-  How to quickly get a cloud-based, GIS-ready instance of RStudio Server running on an Amazon
-  Web Services EC2 instance.
+  Detailed instructions for how to quickly get a cloud-based, tidyverse-ready 
+  instance of RStudio Server running on an Amazon Web Services EC2 instance.
 category: r
 tags: r gis cloud
 ---
 
 [Amazon Web Services](http://aws.amazon.com) (AWS) is a platform that offers a bewildering array of cloud computing services. Their flagship product is [Elastic Compute Cloud](https://aws.amazon.com/ec2/) (EC2) which gives users the ability to quickly deploy virtual computers (called instances) in the cloud. The specifications (number of cores, RAM, and storage) of an instance can be tailored to the size and complexity of the task, and users pay an hourly rate that depends on the computing power of the instance. 
 
-The diversity and flexibility of AWS makes it extremely powerful; however, it also makes simple tasks daunting and confusing. With this in mind, this tutorial will focus on a single, well-defined goal: setting up RStudio Server, with spatial analysis and mapping packages, on an AWS EC2 instance so that RStudio can be accessed via the browser from anywhere. The only prerequisite is an AWS account, which you can [sign up for](http://aws.amazon.com) if you haven't already. A credit card is required to sign up, but you will only be charged for computing time you use, and Amazon offers an excellent [free tier](https://aws.amazon.com/free/) that is suitable for small jobs.
+The diversity and flexibility of AWS makes it extremely powerful; however, it also makes simple tasks daunting and confusing. With this in mind, this tutorial will focus on a single, well-defined goal: setting up RStudio Server--with Hadley Wickham's [Tidyverse](https://cran.rstudio.com/web/packages/tidyverse/) of packages installed--on an AWS EC2 instance so that RStudio can be accessed via the browser from anywhere. The only prerequisite is an AWS account, which you can [sign up for](http://aws.amazon.com) if you haven't already. A credit card is required to sign up, but you will only be charged for computing time you use, and Amazon offers an excellent [free tier](https://aws.amazon.com/free/) that is suitable for small jobs.
 
 This is part I in a series of posts about using RStudio on AWS.
 
@@ -48,7 +48,7 @@ To create a key pair from the EC2 dashboard, select *Key Pairs* from the left pa
 
 <img src="/img/rstudio-cloud/key-pair.png" style="display: block; margin: auto;" />
 
-Your browser will now download a file with a `.pem` extension. This is your private key and should be stored in a secure location. **Important: If you loose your private key you won't be able to access your EC2 instance; if someone else gets ahold of your private key they will be able to gain access to your instance. Be careful with it!**
+Your browser will now download a file with a `.pem` extension. This is your private key and should be stored in a secure location. **Important: If you lose your private key you won't be able to access your EC2 instance; if someone else gets ahold of your private key they will be able to gain access to your instance. Be careful with it!**
 
 ## Launching the instance
 
@@ -58,7 +58,7 @@ To launch an EC2 instance, select *Instance* on the left panel, then click the *
 
 First, you'll be presented with a list of **Amazon Machine Images (AMIs)**. These define the base operating system and software that will be automatically installed on your instance. Of particular interest are the **Community AMIs**, where other AWS users have posted custom AMIs that you can use. 
 
-[Louis Aslett](http://www.louisaslett.com/RStudio_AMI/) kindly maintains an RStudio AMI that I suggest using. To access it, click on *Community AMIs*, then search for "rstudio aslett". You'll see several options, pick the one with the most current RStudio and R versions, for me these are `0.99.491` and `3.2.3` respectively. Click the *Select* button next to this AMI.
+[Louis Aslett](http://www.louisaslett.com/RStudio_AMI/) kindly maintains an RStudio AMI that I suggest using. To access it, click on *Community AMIs*, then search for "rstudio aslett". You'll see several options, pick the one with the most current RStudio and R versions, for me these are `0.99.903` and `3.3.1` respectively. Click the *Select* button next to this AMI.
 
 <img src="/img/rstudio-cloud/ami.png" style="display: block; margin: auto;" />
 
@@ -68,43 +68,17 @@ Now you'll be prompted to select an instance type, this specifies the characteri
 
 <img src="/img/rstudio-cloud/instance-type.png" style="display: block; margin: auto;" />
 
-### Step 3: Configure Instance Details
+### Step 3: Configure Instance Details (Optional)
 
-On the next page, you're asked to configure the instance. Leave the top portion as is, but scroll down to the *Advanced* section and click on it to expend it. You'll now see a text box titled *User Data*, which allows you to enter a shell script that will be run as the instance is created. By entering commands here to install desired software (or R packages) you can reduce the amount of configuration you'll have to do after the instance is created.
+On the next page, you're asked to configure the instance. You can leave all the settings at their default values. However, if you scroll down to the *Advanced* section and click on it to expand it. You'll now see a text box titled *User Data*, which allows you to enter a shell script that will be run as the instance is created. Advanced users can enter commands here to install desired software or configure settings.
 
 <img src="/img/rstudio-cloud/shell-script.png" style="display: block; margin: auto;" />
 
-The following script installs **AWS Command-line Interface**, configures **git**, installs [**littler**](dirk.eddelbuettel.com/code/littler.html) (a better command line interface for R),  and installs a variety of useful **R packages**, some from the Hadleyverse and some for spatial analysis and mapping. This could also be done interactively *after* the instance is already deployed; however, I like to encode as much of the setup as possible into a script since it allows me to quickly start up new instances with the same configuration.
-
-Before running this script, you should make the following modifications:
-
-- Enter your own name and email address to use for git
-- Modify the list of packages to include those most useful to you
-- Modify ther version number of RStudio Server to reference the most recent version,
-available via the [RStudio website](https://www.rstudio.com/products/rstudio/download-server/)
-
-Once you've customized this script, I suggest saving it somewhere for later use. To use this script, just paste it into the *User Data* text box.
+For example, if you want to install [**littler**](dirk.eddelbuettel.com/code/littler.html) (a better command line interface for R) and a variety of useful **R packages** from the Hadleyverse, copy and paste the following script into the *User Data* text box. Note this can also be done interactively *after* the instance is already deployed, so this step is totally optional. However, somtimes I like to encode as much of the setup as possible into a script since it allows me to quickly start up new instances with the same configuration.
 
 ```bash
 #!/bin/bash
 apt-get update -y
-
-# Install AWS Command Line Utilities
-apt-get install -y awscli
-
-# Update RStudio Server
-# Get most current version from https://www.rstudio.com/products/rstudio/download-server/
-apt-get -y install gdebi-core
-wget https://download2.rstudio.org/rstudio-server-0.99.891-amd64.deb
-gdebi -n rstudio-server-0.99.891-amd64.deb
-rm -f rstudio-server-0.99.891-amd64.deb
-
-
-# Configure git for RStudio
-sudo -H -u rstudio bash -c "git config --global user.name 'Your Name'" # CHANGE
-sudo -H -u rstudio bash -c "git config --global user.email 'your@email.com'" # CHANGE
-sudo -H -u rstudio bash -c "git config --global credential.helper 'cache --timeout=10000000'"
-
 # Install littler
 R -e 'install.packages("littler")'
 ln -s /usr/local/lib/R/site-library/littler/bin/r /usr/local/bin/r
@@ -114,10 +88,9 @@ ln -s /usr/local/lib/R/site-library/littler/examples/installGithub.r /usr/local/
 install.r docopt
 
 # Install packages
-# Hadleyverse
-install2.r devtools dplyr ggplot2 lubridate magrittr rvest readr tidyr shiny
-# Spatial
-install2.r sp raster rgdal rgeos geosphere maps maptools rasterVis spatstat
+# Tidyverse: dplyr, tidyr, purrr, etc.
+# https://github.com/hadley/tidyverse
+install2.r devtools tidyverse
 rm -rf /tmp/downloaded_packages/ /tmp/*.rd
 ```
 
@@ -143,7 +116,9 @@ AWS will now boot up your instance, which may take several minutes. Return to th
 
 <img src="/img/rstudio-cloud/instance-ip.png" style="display: block; margin: auto;" />
 
-# Connecting to an EC2 instance via SSH
+# Connecting to an EC2 instance via SSH (Optional)
+
+*If you're on a Windows machine and don't have access to an SSH client you can skip this section. However, you'll likely want to get set up with SSH for more advance use of your EC2 instance.*
 
 To further configure the instance you've just created, or carry out any administrative tasks, you'll need to remotely log into it with SSH. Open a terminal window and enter the following command, making sure to substitute in the correct path to the private key (i.e. `.pem` file) on your local machine and the public DNS of your instance, which is available via the *Instances* page in the *EC2 Console* (see image above).
 
@@ -174,7 +149,7 @@ Then run the above `ssh` command. Note in the `ssh` command that you've connecte
 
 ## Changing the RStudio password
 
-The AMI we've used includes [RStudio Server](https://www.rstudio.com/products/rstudio/), which provides a browser based interface to RStudio running on the EC2 instance. To access RStudio Serve in the browser you'll need to log on with any username/password combination that exist on the EC2 instance. The `ubuntu` user that we used to log on via SSH is not suitable since it has no password. Instead, this AMI comes with an `rstudio` user that has a default password `rstudio`.
+The AMI we've used includes [RStudio Server](https://www.rstudio.com/products/rstudio/), which provides a browser based interface to RStudio running on the EC2 instance. To access RStudio Serve in the browser you'll need to log on with any username/password combination that exists on the EC2 instance. The `ubuntu` user that we used to log on via SSH is not suitable since it has no password. Instead, this AMI comes with an `rstudio` user that has a default password `rstudio`.
 
 To change the default password, log into the instance via SSH as described above, enter the following command, and follow the prompts.
 
@@ -184,10 +159,16 @@ sudo passwd rstudio
 
 # Connecting to RStudio
 
-We've now done all the legwork and it's time for the fun stuff: connecting to RStudio via the browser. Just open your favourite web browser and enter the public DNS of your instance, which is available via the *Instances* page in the *EC2 Console*. Then enter `rstudio` as the username, and the password you just set.
+We've now done all the legwork and it's time for the fun stuff: connecting to RStudio via the browser. Just open your favourite web browser and enter the public DNS of your instance, which is available via the *Instances* page in the *EC2 Console*. Then enter `rstudio` as the username, and the password you just set. If you didn't change the password via SSH use the default password: `rstudio`.
 
 <img src="/img/rstudio-cloud/sign-in.png" style="display: block; margin: auto;" />
 
 Ta-Dah! You now have access to RStudio running on the EC2 instance through your browser. Play around with it and you'll see it functions almost identically to your typical desktop version of RStudio.
 
 <img src="/img/rstudio-cloud/rstudio.png" style="display: block; margin: auto;" />
+
+Finally, if you didn't change your password via SSH you can do so now through R. Just enter the following command and follow the prompts:
+
+```
+RStudioAMI::passwd()
+```

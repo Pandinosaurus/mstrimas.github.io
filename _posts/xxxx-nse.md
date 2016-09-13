@@ -1,0 +1,39 @@
+---
+layout: post
+title: "Grappling with Non-standard Evaluation"
+published: true
+excerpt: >
+  NSE
+category: r
+tags: r
+---
+
+## `substitude()`
+
+
+```r
+my_sub <- function(x, y, z) {
+  a <- "a"
+  substitute(x + y + z + a + b)
+}
+b <- "b"
+c <- "c"
+my_sub(my_variable, sqrt(4), c)
+#> my_variable + sqrt(4) + c + "a" + b
+```
+
+
+## `quote()`
+
+
+```r
+my_quote <- function(x, y, z) {
+  a <- "a"
+  quote(print(x + y + z + a + b))
+}
+b <- "b"
+c <- "c"
+my_quote(my_variable, sqrt(4), c)
+#> print(x + y + z + a + b)
+```
+

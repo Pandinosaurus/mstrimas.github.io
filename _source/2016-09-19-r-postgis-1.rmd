@@ -17,7 +17,7 @@ library(knitr)
 
 This is the first in a series of posts on working with PostGIS in R. Here I'll focus on getting setup.
 
-# A Note on R
+# A note on R
 
 This is primarily a tutorial on using PostGIS through R, however, much of the information should be useful to those using PostGIS through another interface. Throughout this post I'll use the following R packages:
 

@@ -7,12 +7,13 @@ code {
   background-color: $code-box-color;
   font-size: 90%;
   border-radius: $global-radius;
-  padding: .25em .25em;
+  padding: 0;
 }
 
 .highlight {
   background-color: $code-box-color;
   font-size: 90%;
+  padding: 0.25rem 0.5rem;
   margin-bottom: 1.5rem;
   border-radius: $global-radius;
   border: 1px $border-color solid;

@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Introduction to PostgreSQL/PostGIS I: Getting Set Up"
+title: "PostgreSQL/PostGIS I: Getting Set Up"
 published: true
 excerpt: >
   An introduction to the spatial database management system PostGIS, with a focus
@@ -156,7 +156,7 @@ install.packages("rgdal", type = "source")
 4.  Open to the Terminal app and navigate to the directory where you've downloaded the source to.  
 5.  Install the package by running the following in the Terminal, making sure to replace the `tar.gz` filename with the one you downloaded:  
 
-```
+```bash
 sudo R CMD install rgdal_1.1-10.tar.gz --configure-args='--with-gdal-config=/Library/Frameworks/GDAL.framework/unix/bin/gdal-config --with-proj-include=/Library/Frameworks/PROJ.framework/unix/include --with-proj-lib=/Library/Frameworks/PROJ.framework/unix/lib'
 ```
   

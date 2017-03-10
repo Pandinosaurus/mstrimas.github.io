@@ -130,7 +130,7 @@ $$
 \oint_{\partial \Sigma} \mathbf{B} \cdot \mathrm{d}\boldsymbol{\ell} = \mu_0 \iint_{\Sigma} \mathbf{J} \cdot \mathrm{d}\mathbf{S} + \mu_0 \varepsilon_0 \frac{\mathrm{d}}{\mathrm{d}t} \iint_{\Sigma} \mathbf{E} \cdot \mathrm{d}\mathbf{S} 
 $$
 
-Inline equations are surrounded with single dollar signs, or using the Redcarpet or kramdown markdown renderer in Jekyll, `\\( E = m c^2 \\)` yields \\( E = m c^2 \\). $E = m c^2$.
+Inline equations are surrounded with single dollar signs, or using the Redcarpet or kramdown markdown renderer in Jekyll, `\\( E = m c^2 \\)` yields \\( E = m c^2 \\).
 
 # Images
 

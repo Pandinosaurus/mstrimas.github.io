@@ -207,7 +207,7 @@ nc_groups %>%
   as_tibble()
 ```
 
-Note that this currently throws an error, but [I've filed an issue](https://github.com/edzer/sfr/issues/42) and I suspect it will be fixed soon.
+Note that this currently throws an error, but [I've filed an issue](https://github.com/edzer/sfr/issues/42) and the problem has been fixed in the development version of the package.
 
 To only retain countries within groups that have area greater than a given threshold, a grouped `filter()` can be used:
 

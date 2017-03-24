@@ -6,8 +6,6 @@ permalink: /about/
 
 <img src="/img/matt-grey.jpg" alt="me" class="center" style="width:80%;" />
 
-I'm a Vancouver-based conservation researcher who recently finished a master's with [Jedediah Brodie](http://jedediahbrodie.weebly.com/) in the [Zoology Department](http://www.zoology.ubc.ca/) at UBC. My research focuses on the effects of human-induced land use change on ecosystems and how protected areas can be used as a tool to mitigate these negative impacts. Prior to this, I studied physics at the undergraduate and graduate levels, which I credit with shaping how I think and approach problems.  
+I write code and make maps for conservation. I get excited about remote sensing and GIS, reproducible research, data visualization, and building tools to facilitate conservation decision-making.
 
-In addition to my research interests, I get excited about remote sensing and GIS, reproducible research, and writing code. My current interests lie in facilitating conservation research through developing tools to increase efficiency and effectiveness, and providing technical expertise in analytics, GIS, and data management. I hope to bring the skill set and ethos of data science to conservation!
-
-If you think I might be able to contribute to your conservation project, take a look at my [CV](/assets/strimas-mackey_cv.pdf) or [send me an email](mailto:strimas@zoology.ubc.ca).
+I'm currently working at the [Cornell Lab of Ornithology](http://www.birds.cornell.edu/) facilitating the use of [eBird](http://ebird.org/content/ebird/) data for conservation management, planning, and policy-making. Prior to this, I completed a master's with [Jedediah Brodie](http://jedediahbrodie.weebly.com/) in the [Zoology Department](http://www.zoology.ubc.ca/) at the University of British Columbia in Vancouver. My research focused on the effects of human-induced land use change on ecosystems and how systematic conservation prioritization can be used as a tool to mitigate these negative impacts. In a previous life, I studied physics at the undergraduate and graduate levels, which I credit with shaping how I think and approach problems.

@@ -50,7 +50,7 @@ hook_plot_md_link <- function(x, options) {
 # From: http://chepec.se/2014/07/16/knitr-jekyll.html
 knit_post <- function(source_rmd = '', img.dev = "svg", overwrite = FALSE, clean = FALSE) {
   # local directory of jekyll site
-  site_path <- '/Users/matt/projects/mstrimas.github.io/'
+  site_path <- '/Users/mes335/projects/mstrimas.github.io/'
   # rmd directory (relative to base)
   rmd_path <- file.path(site_path, '_source/')
   # relative directory of figures

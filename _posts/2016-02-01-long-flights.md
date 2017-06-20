@@ -31,18 +31,14 @@ library(sp)
 library(raster)
 library(rgdal)
 library(rgeos)
-library(cleangeo)
 library(geosphere)
-library(plyr)
-library(dplyr)
+library(tidyverse)
 library(rvest)
 library(stringr)
-library(tidyr)
 library(lubridate)
-library(ggplot2)
 library(ggmap)
 library(ggrepel)
-library(ggalt) #devtools::install_github("hrbrmstr/ggalt")
+library(ggalt)
 library(viridis)
 ```
 
@@ -52,79 +48,46 @@ The `rvest` package makes web scraping a breeze. I just read the html, extract o
 
 
 ```r
-flights <- read_html('https://en.wikipedia.org/wiki/Non-stop_flight') %>% 
+flights <- read_html('https://en.wikipedia.org/wiki/Longest_flights') %>% 
   html_nodes('.wikitable') %>% 
-  .[[1]] %>% 
-  html_table(fill = TRUE)
+  `[[`(1) %>% 
+  html_table(fill = TRUE) %>% 
+  set_names(c("rank", "from", "to", "airline", "flight_no", "distance",
+              "duration", "aircraft", "first_flight"))
 ```
 
-As usual there are some issues with the imported data. First, the Wikipedia table has cells spanning multiple rows corresponding to flights on the same route with different airlines. The `rvest` help explicitly states that it can't handle rows spanning multiple columns. In addition, the column headers are not nice variable names.
+As usual there are some issues with the imported data. The following issues will need addressing and there are a variety of issues here:
 
-<img src="/img/long-flights/multi-row-cell.png" style="display: block; margin: auto;" />
-
-I fix these issues below.
-
-
-```r
-# variable names
-names(flights) <- c("rank", "from", "to", "airline", "flight_no", "distance",
-                    "duration", "aircraft", "first_flight")
-# cells spanning multiple rows
-row_no <- which(is.na(flights$first_flight))
-problem_rows <- flights[row_no, ]
-fixed_rows <- flights[row_no - 1, ]
-fixed_rows$rank <- problem_rows[, 1]
-fixed_rows$airline <- problem_rows[, 2]
-fixed_rows$flight_no <- problem_rows[, 3]
-fixed_rows$duration <- problem_rows[, 4]
-fixed_rows$aircraft <- problem_rows[, 5]
-flights <- flights[-row_no, ]
-flights <- rbind(flights, fixed_rows) %>% 
-  arrange(rank)
-```
-
-The next step is cleaning the data, and there are a variety of issues here:
-1. Footnotes need to be cleaned out of some cells 
-2. Destinations sometimes have city and airport
-3. Some routes have multiple flight numbers for the same airline
-4. Distances are given in three units all within the same cell
-5. Durations aren't in a nice format to work with
-5. Some routes have different durations for winter and summer
+1. Destinations sometimes have city and airport
+1. Some routes have multiple flight numbers for the same airline
+1. Distances are given in three units all within the same cell
+1. Durations aren't in a nice format to work with
+1. Some routes have different durations for winter and summer
 
 Nothing `stringr` and some regular expressions can't handle!
 
 
 ```r
-flights <- flights %>% 
-  mutate(rank = as.integer(str_extract(rank, "^[:digit:]+")),
-         from = str_extract(from, "^[[:alpha:] ]+"),
-         to = str_extract(to, "^[[:alpha:] ]+"))
 # make multiple flight numbers comma separated
-flights$flight_no <- str_replace_all(flights$flight_no, "[:space:]", "") %>% 
-  str_extract_all("[:alpha:]+[:digit:]+") %>% 
-  laply(paste, collapse = ",")
-# only consider distances in km, convert to integer
-flights$distance <- str_extract(flights$distance, "^[0-9,]+") %>% 
-  str_replace(",", "") %>% 
-  as.integer
-# convert duration to minutes and separate into summer/winter schedules
-flights <- str_match_all(flights$duration, "([:digit:]{2}) hr ([:digit:]{2}) min") %>% 
-  llply(function(x) {60 * as.integer(x[, 2]) + as.integer(x[, 3])}) %>% 
-  llply(function(x) c(x, x)[1:2]) %>% 
-  do.call(rbind, .) %>% 
-  data.frame %>% 
-  setNames(c("duration_summer", "duration_winter")) %>% 
-  mutate(duration_max = pmax(duration_summer, duration_winter)) %>% 
-  cbind(flights, .)
-# first_flight to proper date
-flights$first_flight <- str_extract(flights$first_flight, "^[0-9-]+") %>% 
-  ymd %>% 
-  as.Date
 flights <- flights %>% 
-  mutate(route = paste(from, to, sep = "-")) %>% 
-  dplyr::select(rank, route, from, to, airline, flight_no, distance, 
-         duration = duration_max, duration_summer, duration_winter,
-         first_flight)
+  mutate(flight_no = str_replace_all(flight_no, "\n", ","),
+         flight_no = str_replace_all(flight_no, "[:space:]", ""))
+# only consider distances in km, convert to integer
+flights <- flights %>% 
+  mutate(distance = str_extract(distance, "^[0-9,]+"),
+         distance = parse_number(distance))
+# convert duration to minutes and separate into summer/winter schedules
+time_to_min <- function(x) {
+  str_extract(x, "[:digit:]{2}:[:digit:]{2}$") %>% 
+  str_split(":") %>% 
+  map_dbl(~ sum(as.integer(.x) * c(60, 1)))
+}
+flights <- flights %>% 
+  mutate(duration = time_to_min(duration))
+# select variabless
+flights <- flights %>% 
+  mutate(route = paste(from, to, sep = "–")) %>% 
+  dplyr::select(rank, route, from, to, airline, flight_no, distance, duration)
 ```
 
 Now the table is in a nice clean format and ready for display.
@@ -138,38 +101,38 @@ dplyr::select(flights, rank, route, airline, distance, duration) %>%
 
 
 
-| rank|route                   |airline                 | distance (km)| duration (min)|
-|----:|:-----------------------|:-----------------------|-------------:|--------------:|
-|    1|Auckland-Dubai          |Emirates                |        14,203|          1,035|
-|    2|Dallas-Sydney           |Qantas                  |        13,804|          1,015|
-|    3|Johannesburg-Atlanta    |Delta Air Lines         |        13,582|          1,000|
-|    4|Abu Dhabi-Los Angeles   |Etihad Airways          |        13,502|            990|
-|    5|Dubai-Los Angeles       |Emirates                |        13,420|            995|
-|    6|Jeddah-Los Angeles      |Saudia                  |        13,409|          1,015|
-|    7|Doha-Los Angeles        |Qatar Airways           |        13,367|            985|
-|    8|Dubai-Houston           |Emirates                |        13,144|            980|
-|    9|Abu Dhabi-San Francisco |Etihad Airways          |        13,128|            975|
-|   10|Dallas-Hong Kong        |American Airlines       |        13,072|          1,025|
-|   11|Dubai-San Francisco     |Emirates                |        13,041|            950|
-|   12|New York-Hong Kong      |Cathay Pacific          |        12,983|            975|
-|   13|Newark-Hong Kong        |Cathay Pacific          |        12,980|            960|
-|   14|Newark-Hong Kong        |United Airlines         |        12,980|             NA|
-|   15|Abu Dhabi-Dallas        |Etihad Airways          |        12,962|            980|
-|   16|Doha-Houston            |Qatar Airways           |        12,951|            980|
-|   17|Dubai-Dallas            |Emirates                |        12,940|            980|
-|   18|New York-Guangzhou      |China Southern Airlines |        12,878|            965|
-|   19|Boston-Hong Kong        |Cathay Pacific          |        12,827|            950|
-|   20|Johannesburg-New York   |South African Airways   |        12,825|            965|
-|   21|Houston-Taipei          |EVA Air                 |        12,776|            955|
-|   22|Doha-Dallas             |Qatar Airways           |        12,764|            980|
-|   23|Los Angeles-Melbourne   |Qantas                  |        12,748|            950|
-|   24|Los Angeles-Melbourne   |United Airlines         |        12,748|            950|
-|   25|Toronto-Hong Kong       |Cathay Pacific          |        12,569|            930|
-|   26|Toronto-Hong Kong       |Air Canada              |        12,569|            935|
-|   27|New York-Taipei         |EVA Air                 |        12,566|            970|
-|   28|New York-Taipei         |China Airlines          |        12,566|            920|
-|   29|Mumbai-Newark           |United Airlines         |        12,565|            965|
-|   30|Mumbai-Newark           |Air India               |        12,565|            955|
+| rank|route                     |airline                 | distance (km)| duration (min)|
+|----:|:-------------------------|:-----------------------|-------------:|--------------:|
+|    1|Auckland–Doha             |Qatar Airways           |        14,524|          1,060|
+|    2|Auckland–Dubai            |Emirates                |        14,191|          1,045|
+|    3|Dallas–Sydney             |Qantas                  |        13,799|          1,030|
+|    4|Johannesburg–Atlanta      |Delta Air Lines         |        13,573|          1,015|
+|    5|San Francisco–Singapore   |Singapore Airlines      |        13,572|          1,035|
+|    5|San Francisco–Singapore   |United Airlines         |        13,572|          1,045|
+|    7|Abu Dhabi–Los Angeles     |Etihad Airways          |        13,473|          1,005|
+|    8|Dubai–Los Angeles         |Emirates                |        13,391|            980|
+|    9|Jeddah–Los Angeles        |Saudia                  |        13,381|          1,000|
+|   10|Doha–Los Angeles          |Qatar Airways           |        13,338|            975|
+|   11|Dubai–Houston             |Emirates                |        13,115|          1,005|
+|   12|Abu Dhabi–San Francisco   |Etihad Airways          |        13,098|            975|
+|   13|Dubai–San Francisco       |Emirates                |        13,012|            975|
+|   14|New York JFK–Hong Kong    |Cathay Pacific          |        12,962|            970|
+|   15|Abu Dhabi–Dallas          |Etihad Airways          |        12,960|            995|
+|   16|Newark–Hong Kong          |Cathay Pacific          |        12,951|            950|
+|   16|Newark–Hong Kong          |United Airlines         |        12,951|            960|
+|   18|Dallas–Hong Kong          |American Airlines       |        12,945|          1,025|
+|   19|Doha–Houston              |Qatar Airways           |        12,923|          1,000|
+|   20|Dubai–Dallas              |Emirates                |        12,911|            975|
+|   21|Shanghai–Mexico City      |Aeroméxico              |        12,889|            961|
+|   22|New York JFK–Guangzhou    |China Southern Airlines |        12,849|            965|
+|   23|New York JFK–Johannesburg |South African Airways   |        12,822|            890|
+|   24|Boston–Hong Kong          |Cathay Pacific          |        12,797|            940|
+|   25|Los Angeles–Melbourne     |Qantas                  |        12,749|            955|
+|   25|Los Angeles–Melbourne     |United Airlines         |        12,749|            955|
+|   25|Los Angeles–Melbourne     |Virgin Australia        |        12,749|            950|
+|   28|Houston–Taipei            |EVA Air                 |        12,748|            990|
+|   29|Doha–Dallas               |Qatar Airways           |        12,736|            975|
+|   30|Dubai–Fort Lauderdale     |Emirates                |        12,566|            985|
 
 # Geocoding
 
@@ -178,13 +141,15 @@ If I'm going to map these flights, I'll need coordinates for each city in the da
 
 ```r
 cities <- c(flights$from, flights$to) %>% 
-  unique
-cities[cities == "Melbourne"] <- "Melbourne, Australia"
-cities <- cities %>% 
-  cbind(city = ., geocode(., output = "latlon", source = "google"))
-cities <- cities %>% 
-  mutate(city = as.character(city),
-         city = ifelse(city == "Melbourne, Australia", "Melbourne", city))
+  unique() %>% 
+  data_frame(city = .) %>% 
+  mutate(cty_cnt = if_else(city == "Melbourne", "Melbourne, Australia", 
+                           city)) %>% 
+  # geocode
+  mutate(locs = map(cty_cnt, geocode, output = "latlon", source = "google", 
+                    messaging = FALSE)) %>% 
+  unnest() %>% 
+  select(-cty_cnt)
 ```
 
 Now I bring these coordinates into the `flights` dataframe.
@@ -193,8 +158,9 @@ Now I bring these coordinates into the `flights` dataframe.
 ```r
 flights <- flights %>% 
   left_join(cities, by = c("from" = "city")) %>% 
+  rename(lng_from = lon, lat_from = lat) %>% 
   left_join(cities, by = c("to" = "city")) %>% 
-  rename(lng_from = lon.x, lat_from = lat.x, lng_to = lon.y, lat_to = lat.y)
+  rename(lng_to = lon, lat_to = lat)
 ```
 
 # Flight paths
@@ -203,7 +169,7 @@ A [great circle](https://en.wikipedia.org/wiki/Great_circle) is the path on a sp
 
 
 ```r
-flights_unique <- flights %>% 
+flights_unique <- flights %>%
   group_by(route) %>% 
   filter(row_number(desc(duration)) == 1)
 ```
@@ -368,7 +334,7 @@ split <- function(x, edge, spacing = 0.1) {
   # add original id as attribute
   gi <- gIntersection(x, sides, byid = TRUE, drop_lower_td = TRUE)
   ids <- data.frame(.id = gsub(" (left|right)$", "", row.names(gi)),
-                       stringsAsFactors = FALSE)
+                    stringsAsFactors = TRUE)
   row.names(ids) <- row.names(gi)
   if (inherits(gi, "SpatialPolygons")) {
     gi <- SpatialPolygonsDataFrame(gi, ids, match.ID = TRUE)
@@ -422,7 +388,7 @@ project_recenter <- function(x, proj, union_field, union_scale = getScale()) {
           -x_proj@polygons[[i]]@Polygons[[j]]@coords[prob, 1]
       }
     }
-    x_proj <- clgeo_Clean(x_proj)
+    #x_proj <- clgeo_Clean(x_proj)
     s <- getScale()
     setScale(union_scale)
     if (!missing(union_field)) {
@@ -466,8 +432,8 @@ routes_nodl <- SpatialLinesDataFrame(routes_nodl,
                                                 route = flights_unique$route,
                                                 stringsAsFactors = FALSE))
 row.names(routes_nodl) <- as.character(routes_nodl$rank)
-# Auckland-Dubai crosses edge
-crosses_edge <- (routes_nodl$route == "Auckland-Dubai")
+# Auckland routes cross edge
+crosses_edge <- (routes_nodl$route %in% c("Auckland–Dubai", "Auckland–Doha"))
 crosses_edge_sl <- project_recenter(routes_nodl[crosses_edge, ], proj,
                                     union_field = "rank",
                                     union_scale = 1e6)
@@ -482,7 +448,7 @@ cities_wgs <- cities
 coordinates(cities_wgs) <- ~ lon + lat
 projection(cities_wgs) <- projection(world)
 cities_kav_df <- spTransform(cities_wgs, proj) %>% 
-  as.data.frame
+  as_tibble()
 ```
 
 Plotting the newly centered data.
@@ -491,7 +457,7 @@ Plotting the newly centered data.
 ```r
 world_kav_df <- project_recenter(world, proj, union_field = "sov_a3", 
                                  union_scale = 1e6) %>% 
-  fortify
+  fortify()
 ggplot() +
   geom_polygon(data = world_kav_df, aes(long, lat, group = group), 
                fill = "grey80", color = "grey60", size = 0.1) +
@@ -644,7 +610,7 @@ ggplot() +
   geom_polygon(data = bb_df, aes(long, lat, group = group),
                fill = NA, color = "grey20") +
   annotate("text", x = 0.25 * max(bb_df$long), y = 0.97 * min(bb_df$lat), 
-           label = "strimas.com - data source: wikipedia", 
+           label = "strimas.com - data source: wikipedia", 
            color = "grey20", size = 3, family = "Times") +
   geom_text_repel(data = cities_kav_df, aes(lon, lat, label = city),
                   size = 3, color = "white", fontface = "bold",
@@ -686,32 +652,33 @@ ggplot() +
 <a href="/figures//long-flights_final-1.png"><img src="/figures//long-flights_final-1.png" title="plot of chunk final" alt="plot of chunk final" style="display: block; margin: auto;" /></a>
 
 
-| rank|route                   |airline                 | distance (km)| duration (hours)|
-|----:|:-----------------------|:-----------------------|-------------:|----------------:|
-|    1|Auckland-Dubai          |Emirates                |        14,203|            17.25|
-|    2|Dallas-Hong Kong        |American Airlines       |        13,072|            17.08|
-|    3|Dallas-Sydney           |Qantas                  |        13,804|            16.92|
-|    4|Jeddah-Los Angeles      |Saudia                  |        13,409|            16.92|
-|    5|Johannesburg-Atlanta    |Delta Air Lines         |        13,582|            16.67|
-|    6|Dubai-Los Angeles       |Emirates                |        13,420|            16.58|
-|    7|Abu Dhabi-Los Angeles   |Etihad Airways          |        13,502|            16.50|
-|    8|Doha-Los Angeles        |Qatar Airways           |        13,367|            16.42|
-|    9|Dubai-Houston           |Emirates                |        13,144|            16.33|
-|   10|Abu Dhabi-Dallas        |Etihad Airways          |        12,962|            16.33|
-|   11|Doha-Houston            |Qatar Airways           |        12,951|            16.33|
-|   12|Dubai-Dallas            |Emirates                |        12,940|            16.33|
-|   13|Doha-Dallas             |Qatar Airways           |        12,764|            16.33|
-|   14|Abu Dhabi-San Francisco |Etihad Airways          |        13,128|            16.25|
-|   15|New York-Hong Kong      |Cathay Pacific          |        12,983|            16.25|
-|   16|New York-Taipei         |EVA Air                 |        12,566|            16.17|
-|   17|New York-Guangzhou      |China Southern Airlines |        12,878|            16.08|
-|   18|Johannesburg-New York   |South African Airways   |        12,825|            16.08|
-|   19|Mumbai-Newark           |United Airlines         |        12,565|            16.08|
-|   20|Newark-Hong Kong        |Cathay Pacific          |        12,980|            16.00|
-|   21|Houston-Taipei          |EVA Air                 |        12,776|            15.92|
-|   22|Dubai-San Francisco     |Emirates                |        13,041|            15.83|
-|   23|Boston-Hong Kong        |Cathay Pacific          |        12,827|            15.83|
-|   24|Los Angeles-Melbourne   |Qantas                  |        12,748|            15.83|
-|   25|Toronto-Hong Kong       |Air Canada              |        12,569|            15.58|
+| rank|route                     |airline                 | distance (km)| duration (hours)|
+|----:|:-------------------------|:-----------------------|-------------:|----------------:|
+|    1|Auckland–Doha             |Qatar Airways           |        14,524|            17.67|
+|    2|Auckland–Dubai            |Emirates                |        14,191|            17.42|
+|    3|San Francisco–Singapore   |United Airlines         |        13,572|            17.42|
+|    4|Dallas–Sydney             |Qantas                  |        13,799|            17.17|
+|    5|Dallas–Hong Kong          |American Airlines       |        12,945|            17.08|
+|    6|Johannesburg–Atlanta      |Delta Air Lines         |        13,573|            16.92|
+|    7|Abu Dhabi–Los Angeles     |Etihad Airways          |        13,473|            16.75|
+|    8|Dubai–Houston             |Emirates                |        13,115|            16.75|
+|    9|Jeddah–Los Angeles        |Saudia                  |        13,381|            16.67|
+|   10|Doha–Houston              |Qatar Airways           |        12,923|            16.67|
+|   11|Abu Dhabi–Dallas          |Etihad Airways          |        12,960|            16.58|
+|   12|Houston–Taipei            |EVA Air                 |        12,748|            16.50|
+|   13|Dubai–Fort Lauderdale     |Emirates                |        12,566|            16.42|
+|   14|Dubai–Los Angeles         |Emirates                |        13,391|            16.33|
+|   15|Doha–Los Angeles          |Qatar Airways           |        13,338|            16.25|
+|   16|Abu Dhabi–San Francisco   |Etihad Airways          |        13,098|            16.25|
+|   17|Dubai–San Francisco       |Emirates                |        13,012|            16.25|
+|   18|Dubai–Dallas              |Emirates                |        12,911|            16.25|
+|   19|Doha–Dallas               |Qatar Airways           |        12,736|            16.25|
+|   20|New York JFK–Hong Kong    |Cathay Pacific          |        12,962|            16.17|
+|   21|New York JFK–Guangzhou    |China Southern Airlines |        12,849|            16.08|
+|   22|Shanghai–Mexico City      |Aeroméxico              |        12,889|            16.02|
+|   23|Newark–Hong Kong          |United Airlines         |        12,951|            16.00|
+|   24|Los Angeles–Melbourne     |Qantas                  |        12,749|            15.92|
+|   25|Boston–Hong Kong          |Cathay Pacific          |        12,797|            15.67|
+|   26|New York JFK–Johannesburg |South African Airways   |        12,822|            14.83|
 
 Overall, I'm increasingly impressed with ggplot as a tool for mapping and I think the new packages [ggalt](https://github.com/hrbrmstr/ggalt) and [ggrepel](https://github.com/slowkow/ggrepel) are great additions. Unfortunately, making a map with a non-standard central meridian is a huge pain in R, but in the end I'm quite happy with the results!

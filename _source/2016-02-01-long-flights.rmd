@@ -32,18 +32,14 @@ library(sp)
 library(raster)
 library(rgdal)
 library(rgeos)
-library(cleangeo)
 library(geosphere)
-library(plyr)
-library(dplyr)
+library(tidyverse)
 library(rvest)
 library(stringr)
-library(tidyr)
 library(lubridate)
-library(ggplot2)
 library(ggmap)
 library(ggrepel)
-library(ggalt) #devtools::install_github("hrbrmstr/ggalt")
+library(ggalt)
 library(viridis)
 ```
 
@@ -52,77 +48,45 @@ library(viridis)
 The `rvest` package makes web scraping a breeze. I just read the html, extract out any tables, pick the first table on the page (this is the only one I'm interested in), and parse it into a dataframe with `html_table()`.
 
 ```{r wiki-data, cache=T}
-flights <- read_html('https://en.wikipedia.org/wiki/Non-stop_flight') %>% 
+flights <- read_html('https://en.wikipedia.org/wiki/Longest_flights') %>% 
   html_nodes('.wikitable') %>% 
-  .[[1]] %>% 
-  html_table(fill = TRUE)
+  `[[`(1) %>% 
+  html_table(fill = TRUE) %>% 
+  set_names(c("rank", "from", "to", "airline", "flight_no", "distance",
+              "duration", "aircraft", "first_flight"))
 ```
 
-As usual there are some issues with the imported data. First, the Wikipedia table has cells spanning multiple rows corresponding to flights on the same route with different airlines. The `rvest` help explicitly states that it can't handle rows spanning multiple columns. In addition, the column headers are not nice variable names.
+As usual there are some issues with the imported data. The following issues will need addressing and there are a variety of issues here:
 
-<img src="/img/long-flights/multi-row-cell.png" style="display: block; margin: auto;" />
-
-I fix these issues below.
-
-```{r fix-cell-issue}
-# variable names
-names(flights) <- c("rank", "from", "to", "airline", "flight_no", "distance",
-                    "duration", "aircraft", "first_flight")
-# cells spanning multiple rows
-row_no <- which(is.na(flights$first_flight))
-problem_rows <- flights[row_no, ]
-fixed_rows <- flights[row_no - 1, ]
-fixed_rows$rank <- problem_rows[, 1]
-fixed_rows$airline <- problem_rows[, 2]
-fixed_rows$flight_no <- problem_rows[, 3]
-fixed_rows$duration <- problem_rows[, 4]
-fixed_rows$aircraft <- problem_rows[, 5]
-flights <- flights[-row_no, ]
-flights <- rbind(flights, fixed_rows) %>% 
-  arrange(rank)
-```
-
-The next step is cleaning the data, and there are a variety of issues here:
-1. Footnotes need to be cleaned out of some cells 
-2. Destinations sometimes have city and airport
-3. Some routes have multiple flight numbers for the same airline
-4. Distances are given in three units all within the same cell
-5. Durations aren't in a nice format to work with
-5. Some routes have different durations for winter and summer
+1. Destinations sometimes have city and airport
+1. Some routes have multiple flight numbers for the same airline
+1. Distances are given in three units all within the same cell
+1. Durations aren't in a nice format to work with
+1. Some routes have different durations for winter and summer
 
 Nothing `stringr` and some regular expressions can't handle!
 
 ```{r clean}
-flights <- flights %>% 
-  mutate(rank = as.integer(str_extract(rank, "^[:digit:]+")),
-         from = str_extract(from, "^[[:alpha:] ]+"),
-         to = str_extract(to, "^[[:alpha:] ]+"))
 # make multiple flight numbers comma separated
-flights$flight_no <- str_replace_all(flights$flight_no, "[:space:]", "") %>% 
-  str_extract_all("[:alpha:]+[:digit:]+") %>% 
-  laply(paste, collapse = ",")
-# only consider distances in km, convert to integer
-flights$distance <- str_extract(flights$distance, "^[0-9,]+") %>% 
-  str_replace(",", "") %>% 
-  as.integer
-# convert duration to minutes and separate into summer/winter schedules
-flights <- str_match_all(flights$duration, "([:digit:]{2}) hr ([:digit:]{2}) min") %>% 
-  llply(function(x) {60 * as.integer(x[, 2]) + as.integer(x[, 3])}) %>% 
-  llply(function(x) c(x, x)[1:2]) %>% 
-  do.call(rbind, .) %>% 
-  data.frame %>% 
-  setNames(c("duration_summer", "duration_winter")) %>% 
-  mutate(duration_max = pmax(duration_summer, duration_winter)) %>% 
-  cbind(flights, .)
-# first_flight to proper date
-flights$first_flight <- str_extract(flights$first_flight, "^[0-9-]+") %>% 
-  ymd %>% 
-  as.Date
 flights <- flights %>% 
-  mutate(route = paste(from, to, sep = "-")) %>% 
-  dplyr::select(rank, route, from, to, airline, flight_no, distance, 
-         duration = duration_max, duration_summer, duration_winter,
-         first_flight)
+  mutate(flight_no = str_replace_all(flight_no, "\n", ","),
+         flight_no = str_replace_all(flight_no, "[:space:]", ""))
+# only consider distances in km, convert to integer
+flights <- flights %>% 
+  mutate(distance = str_extract(distance, "^[0-9,]+"),
+         distance = parse_number(distance))
+# convert duration to minutes and separate into summer/winter schedules
+time_to_min <- function(x) {
+  str_extract(x, "[:digit:]{2}:[:digit:]{2}$") %>% 
+  str_split(":") %>% 
+  map_dbl(~ sum(as.integer(.x) * c(60, 1)))
+}
+flights <- flights %>% 
+  mutate(duration = time_to_min(duration))
+# select variabless
+flights <- flights %>% 
+  mutate(route = paste(from, to, sep = "–")) %>% 
+  dplyr::select(rank, route, from, to, airline, flight_no, distance, duration)
 ```
 
 Now the table is in a nice clean format and ready for display.
@@ -139,13 +103,15 @@ If I'm going to map these flights, I'll need coordinates for each city in the da
 
 ```{r geocode, cache=T}
 cities <- c(flights$from, flights$to) %>% 
-  unique
-cities[cities == "Melbourne"] <- "Melbourne, Australia"
-cities <- cities %>% 
-  cbind(city = ., geocode(., output = "latlon", source = "google"))
-cities <- cities %>% 
-  mutate(city = as.character(city),
-         city = ifelse(city == "Melbourne, Australia", "Melbourne", city))
+  unique() %>% 
+  data_frame(city = .) %>% 
+  mutate(cty_cnt = if_else(city == "Melbourne", "Melbourne, Australia", 
+                           city)) %>% 
+  # geocode
+  mutate(locs = map(cty_cnt, geocode, output = "latlon", source = "google", 
+                    messaging = FALSE)) %>% 
+  unnest() %>% 
+  select(-cty_cnt)
 ```
 
 Now I bring these coordinates into the `flights` dataframe.
@@ -153,8 +119,9 @@ Now I bring these coordinates into the `flights` dataframe.
 ```{r flight-coords}
 flights <- flights %>% 
   left_join(cities, by = c("from" = "city")) %>% 
+  rename(lng_from = lon, lat_from = lat) %>% 
   left_join(cities, by = c("to" = "city")) %>% 
-  rename(lng_from = lon.x, lat_from = lat.x, lng_to = lon.y, lat_to = lat.y)
+  rename(lng_to = lon, lat_to = lat)
 ```
 
 # Flight paths
@@ -162,7 +129,7 @@ flights <- flights %>%
 A [great circle](https://en.wikipedia.org/wiki/Great_circle) is the path on a spherical surface (such as the Earth) that gives the shortest distance between two points. Although I have no way of knowing what the actual flight path is for these routes, it's likely to be reasonably approximated by a great circle. First I subset the flights dataset to only include unique routes.
 
 ```{r flight-subset}
-flights_unique <- flights %>% 
+flights_unique <- flights %>%
   group_by(route) %>% 
   filter(row_number(desc(duration)) == 1)
 ```
@@ -314,7 +281,7 @@ split <- function(x, edge, spacing = 0.1) {
   # add original id as attribute
   gi <- gIntersection(x, sides, byid = TRUE, drop_lower_td = TRUE)
   ids <- data.frame(.id = gsub(" (left|right)$", "", row.names(gi)),
-                       stringsAsFactors = FALSE)
+                    stringsAsFactors = TRUE)
   row.names(ids) <- row.names(gi)
   if (inherits(gi, "SpatialPolygons")) {
     gi <- SpatialPolygonsDataFrame(gi, ids, match.ID = TRUE)
@@ -368,7 +335,7 @@ project_recenter <- function(x, proj, union_field, union_scale = getScale()) {
           -x_proj@polygons[[i]]@Polygons[[j]]@coords[prob, 1]
       }
     }
-    x_proj <- clgeo_Clean(x_proj)
+    #x_proj <- clgeo_Clean(x_proj)
     s <- getScale()
     setScale(union_scale)
     if (!missing(union_field)) {
@@ -411,8 +378,8 @@ routes_nodl <- SpatialLinesDataFrame(routes_nodl,
                                                 route = flights_unique$route,
                                                 stringsAsFactors = FALSE))
 row.names(routes_nodl) <- as.character(routes_nodl$rank)
-# Auckland-Dubai crosses edge
-crosses_edge <- (routes_nodl$route == "Auckland-Dubai")
+# Auckland routes cross edge
+crosses_edge <- (routes_nodl$route %in% c("Auckland–Dubai", "Auckland–Doha"))
 crosses_edge_sl <- project_recenter(routes_nodl[crosses_edge, ], proj,
                                     union_field = "rank",
                                     union_scale = 1e6)
@@ -427,7 +394,7 @@ cities_wgs <- cities
 coordinates(cities_wgs) <- ~ lon + lat
 projection(cities_wgs) <- projection(world)
 cities_kav_df <- spTransform(cities_wgs, proj) %>% 
-  as.data.frame
+  as_tibble()
 ```
 
 Plotting the newly centered data.
@@ -435,7 +402,7 @@ Plotting the newly centered data.
 ```{r meridian, fig.width=480/96, fig.height=300/96}
 world_kav_df <- project_recenter(world, proj, union_field = "sov_a3", 
                                  union_scale = 1e6) %>% 
-  fortify
+  fortify()
 ggplot() +
   geom_polygon(data = world_kav_df, aes(long, lat, group = group), 
                fill = "grey80", color = "grey60", size = 0.1) +
@@ -578,7 +545,7 @@ ggplot() +
   geom_polygon(data = bb_df, aes(long, lat, group = group),
                fill = NA, color = "grey20") +
   annotate("text", x = 0.25 * max(bb_df$long), y = 0.97 * min(bb_df$lat), 
-           label = "strimas.com - data source: wikipedia", 
+           label = "strimas.com - data source: wikipedia", 
            color = "grey20", size = 3, family = "Times") +
   geom_text_repel(data = cities_kav_df, aes(lon, lat, label = city),
                   size = 3, color = "white", fontface = "bold",

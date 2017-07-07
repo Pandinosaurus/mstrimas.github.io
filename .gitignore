@@ -12,4 +12,4 @@ package.json
 .Rhistory
 
 _source/cache/
-_source/cache/ebird-county/CAN_adm.gpkg
+_source/data/ebird-county/CAN_adm.gpkg

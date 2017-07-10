@@ -11,13 +11,13 @@ tags: r spatial gis ebird
 leaflet: true
 ---
 
-[eBird](http://ebird.org) is my go to tool for keeping track of my sightings when I'm out birding. The eBird website is also a great tool for deciding where to go birding. You can find out where particular target birds have been seen recently, or see what other birders have seen in different geographical regions or birding hotspots. Recently, when I've been on a road trip and I pass through into a new county, I'll try to stop a least once to go birding. Usually I'll choose a location by looking at nearby [eBird hotspots](https://ebird.org/ebird/hotspots) and picking the one with the most species observed. Part of the fun of this is filling in as many counties as possible on my [eBird profile](https://ebird.org/ebird/profile/MTU0MjQz/US-NY) for my home state, New York.
+[eBird](http://ebird.org) is my go to tool for keeping track of my sightings when I'm out birding. The eBird website is also a great tool for deciding where to go birding. You can find out where particular target birds have been seen recently, or see what other birders have seen in different geographical regions or birding hotspots. Recently, when I've been on a road trip and I pass into a new county, I'll try to stop a least once to go birding. Usually I'll choose a location by looking at nearby [eBird hotspots](https://ebird.org/ebird/hotspots) and picking the one with the most species observed. Part of the fun of this is filling in as many counties as possible on my [eBird profile](https://ebird.org/ebird/profile/MTU0MjQz/US-NY) for my home state, New York.
 
 <div style="text-align: center">
   <img src="/img/ebird-county/county-map.png" width = "500"/>
 </div>
 
-With this county birding in mind, I decided to make a map of the top eBird hotspot in each county in the US. From an R perspective, this post will cover scraping password protected websites with `rvest` and making interactive web maps with `leaflet`. I'll also be using the new R package, `sf`, the working with spatial data.
+With this county birding in mind, I decided to make a map of the top eBird hotspot in each county in the US. As always, this is really just an excuse to mess around in R, and this post will cover scraping password protected websites with `rvest` and making interactive web maps with `leaflet`. I'll also be using the new R package, `sf`, for working with spatial data.
 
 ## Required packages
 
@@ -37,7 +37,7 @@ library(here)
 
 ## eBird log in
 
-eBird requires logging in to to explore their data. To log in, and stay logged in through a variety of tasks, I'll use `html_session()` to mimic a session in an HTML browser. I grab the log in form with `html_form()`, fill it with a password I've stored as an environment variable to I don't have to show it in this post, and submit the form with `submit_form()`.
+eBird requires logging in to explore their data. To log in, and stay logged in through a variety of tasks, I'll use `html_session()` to mimic a session in an HTML browser. I grab the log in form with `html_form()`, fill it with a password I've stored as an environment variable so I don't have to show it in this post, and submit the form with `submit_form()`.
 
 
 ```r
@@ -89,7 +89,7 @@ ebird_regions <- ebird_regions %>%
 
 ### Extraction function
 
-Now I define a function that extracts all the sub-region data within a region. So, I don't hit the eBird website with a bunch of requests all at once, I've used `Sys.sleep()` to pause between each page load.
+Now I define a function that extracts all the sub-region data within a region. So I don't hit the eBird website with a bunch of requests all at once, I've used `Sys.sleep()` to pause between each page load.
 
 
 ```r
@@ -256,7 +256,7 @@ top_hotspots <- top_hotspots %>%
 
 ## Maps
 
-Now that I have the data from eBird, I'll make a few maps. First, I'll produce a static `ggplot2` choropleth maps of the number of species seen in each state and county. Then I'll produce an interactive `leaflet` map of the top eBird hotspot in each county.
+Now that I have the data from eBird, I'll make a few maps. First, I'll produce static `ggplot2` choropleth maps of the number of species seen in each state and county. Then I'll produce an interactive `leaflet` map of the top eBird hotspot in each county.
 
 ### ggplot2 state map
 
@@ -280,7 +280,7 @@ ebird_states <- ebird_regions %>%
   inner_join(na_states, ., by = "region_code")
 ```
 
-Now, I produce a choropleth map of species seen in each county using the new `ggplot2::geom_sf()` ggplot2 geom for working with `sf` objects.
+Now, I produce a choropleth map of species seen in each state using the new `ggplot2::geom_sf()` ggplot2 geom for working with `sf` objects.
 
 
 ```r
@@ -294,7 +294,7 @@ bl <- ne_download(scale = 110, type = "admin_0_boundary_lines_land",
                   returnclass = "sf") %>% 
   st_transform(crs = proj)
 #> OGR data source with driver: ESRI Shapefile 
-#> Source: "/var/folders/mg/qh40qmqd7376xn8qxd6hm5lwjyy0h2/T//RtmpQKowoa", layer: "ne_110m_admin_0_boundary_lines_land"
+#> Source: "/var/folders/mg/qh40qmqd7376xn8qxd6hm5lwjyy0h2/T//RtmpzgwKk1", layer: "ne_110m_admin_0_boundary_lines_land"
 #> with 185 features
 #> It has 4 fields
 #> Integer64 fields read as strings:  scalerank
@@ -318,7 +318,7 @@ ggplot(ebird_states_aea) +
 
 <a href="/figures//ebird-county_choropleth-species-st-1.png"><img src="/figures//ebird-county_choropleth-species-st-1.png" title="plot of chunk choropleth-species-st" alt="plot of chunk choropleth-species-st" style="display: block; margin: auto;" /></a>
 
-In the US, California (683 species) and Texas (660 species) are, unsurprisingly, the big winners here. Mexico's Oaxaca is overall the most diverse state in North America, with an impressive 742 species reported, more than all of Canada. At the other end, Canada's Nunavut has just 230 species. 
+In the US, California (683 species) and Texas (660 species) are, unsurprisingly, the big winners here. Mexico's Oaxaca is overall the most diverse state in North America, with an impressive 742 species reported; more than all of Canada. At the other end, Canada's Nunavut has a paltry 230 species. 
 
 ### County boundaries
 
@@ -449,10 +449,6 @@ ca_counties <- rbind(ca_counties, sr_split, fs_split, mb_split, nq_split,
 
 
 
-```r
-ca_counties <- here("_source", "data", "ebird-county", "canada_counties.rds") %>% 
-  readRDS()
-```
 
 Mexico is fortunately easy since eBird only goes to state level, which I already have from above.
 
@@ -515,7 +511,7 @@ ggplot(ebird_counties_aea) +
 
 <a href="/figures//ebird-county_choropleth-species-1.png"><img src="/figures//ebird-county_choropleth-species-1.png" title="plot of chunk choropleth-species" alt="plot of chunk choropleth-species" style="display: block; margin: auto;" /></a>
 
-As you'd expect, Mexico is the winner here, both because there is higher bird diversity, but also because the Mexican data are at the state level while the US and Canada data are at the (smaller) county level. In fact, this map is somewhat misleading in general because the mapped regions are so variable in size. Within the US, the southern states, and coastal states, have the most species reported.
+As you'd expect, Mexico is the winner here, both because there is higher bird diversity, but also because the Mexican data are at the state level while the US and Canada data are at the (smaller) county level. In fact, this map is misleading in general because the mapped regions are so variable in size. Within the US, the southern states, and coastal states, have the most species reported.
 
 ### Leaflet choropleth map
 

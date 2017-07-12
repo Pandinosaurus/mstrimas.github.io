@@ -9,7 +9,7 @@ tags: r spatial gis ebird
 leaflet: true
 ---
 
-After seeing my [previous post](/r/ebird-count/), one of my colleagues suggested it would be interesting to see a map of the least eBirded counties in the US. Highlighting these counties might encourage more eBirders to visit them, thereby filling in the geographic gaps in eBird data. So, here it is, the counties within each state having the fewest checklists. I'll also throw on the county with the most checklists for comparison. There are much more sophisticated ways of looking at gaps in eBird data, but this is a good start.
+After seeing my [previous post](/r/ebird-county/), one of my colleagues suggested it would be interesting to see a map of the least eBirded counties in the US. Highlighting these counties might encourage more eBirders to visit them, thereby filling in the geographic gaps in eBird data. So, here it is, the counties within each state having the fewest checklists. I'll also throw on the county with the most checklists for comparison. There are much more sophisticated ways of looking at gaps in eBird data, but this is a good start.
 
 
 ```r
@@ -45,7 +45,8 @@ popup_maker <- function(code, name, n_species, n_checklists) {
   link_style <- "target='_blank' style='text-decoration: none;'"
   region_url <- paste0("<strong><a href='http://ebird.org/ebird/subnational2/",
                        code, "?yr=all' ", link_style, ">", name, "</a></strong>")
-  counts <- paste0("<strong>", n_checklists, " checklists</strong> | ", 
+  counts <- paste0("<strong>", format(n_checklists, big.mark = ","), 
+                   " checklists</strong> | ", 
                    n_species, " species")
   paste(region_url, counts, sep = "<br/>")
 }
@@ -57,7 +58,7 @@ ebird_counties <- ebird_counties %>%
 
 # leaflet map
 p <- colorFactor(c("#e41a1c", "#4daf4a"), 
-                 domain = c("Fewest eBird checklists", "Most eBird checklists"))
+                 domain = c("Fewest checklists", "Most checklists"))
 leaflet(ebird_counties) %>%
   addProviderTiles("OpenMapSurfer.Roads") %>% 
   addFullscreenControl() %>% 

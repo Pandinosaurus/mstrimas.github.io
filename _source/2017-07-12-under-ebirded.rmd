@@ -9,7 +9,7 @@ tags: r spatial gis ebird
 leaflet: true
 ---
 
-After seeing my [previous post](/r/ebird-count/), one of my colleagues suggested it would be interesting to see a map of the least eBirded counties in the US. Highlighting these counties might encourage more eBirders to visit them, thereby filling in the geographic gaps in eBird data. So, here it is, the counties within each state having the fewest checklists. I'll also throw on the county with the most checklists for comparison. There are much more sophisticated ways of looking at gaps in eBird data, but this is a good start.
+After seeing my [previous post](/r/ebird-county/), one of my colleagues suggested it would be interesting to see a map of the least eBirded counties in the US. Highlighting these counties might encourage more eBirders to visit them, thereby filling in the geographic gaps in eBird data. So, here it is, the counties within each state having the fewest checklists. I'll also throw on the county with the most checklists for comparison. There are much more sophisticated ways of looking at gaps in eBird data, but this is a good start.
 
 ```{r underbirded, eval = FALSE}
 library(dplyr)

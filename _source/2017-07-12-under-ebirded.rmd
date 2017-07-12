@@ -13,6 +13,7 @@ After seeing my [previous post](/r/ebird-county/), one of my colleagues suggeste
 
 ```{r underbirded, eval = FALSE}
 library(dplyr)
+library(stringr)
 library(sf)
 library(leaflet)
 library(leaflet.extras)
@@ -22,22 +23,7 @@ library(here)
 ebird_counties <- here("_source", "data", "ebird-county", "ebird-county_sf.rds") %>% 
   readRDS() %>% 
   # filter to counties in lower 48
-  filter(str_detect(region_code, "^US"), state != "AK")
-
-# fewest checklists by state
-ebird_counties_least <- ebird_counties %>% 
-  group_by(state) %>% 
-  top_n(-1, n_checklists) %>% 
-  ungroup() %>% 
-  mutate(label = "Fewest checklists")
-# most checklists by state
-ebird_counties_most <- ebird_counties %>% 
-  group_by(state) %>% 
-  top_n(1, n_checklists) %>% 
-  ungroup() %>% 
-  mutate(label = "Most checklists")
-# combine
-ebird_counties <- rbind(ebird_counties_least, ebird_counties_most)
+  filter(str_detect(region_code, "^US"), !state %in% c("AK", "DC"))
 
 # add popups
 popup_maker <- function(code, name, n_species, n_checklists) {
@@ -52,22 +38,71 @@ popup_maker <- function(code, name, n_species, n_checklists) {
 ebird_counties <- ebird_counties %>% 
   mutate(region_name = paste(region_name, state, sep = ", "),
          popup = popup_maker(region_code, region_name, 
-                             n_species, n_checklists)) %>% 
-  select(label, popup)
+                             n_species, n_checklists)) 
+
+# bottom county by state
+ebird_counties_least <- ebird_counties %>% 
+  group_by(state) %>% 
+  top_n(-1, n_checklists) %>% 
+  ungroup() %>% 
+  mutate(label = "Bottom counties", grp = "Bottom county") %>% 
+  select(popup, label, grp)
+# bottom 5% by state
+ebird_counties_b5 <- ebird_counties %>% 
+  group_by(state) %>% 
+  filter(n_checklists <= quantile(n_checklists, 0.05)) %>% 
+  ungroup() %>% 
+  mutate(label = "Bottom counties", grp = "Bottom 5%") %>% 
+  select(popup, label, grp)
+# bottom 10% by state
+ebird_counties_b10 <- ebird_counties %>% 
+  group_by(state) %>% 
+  filter(n_checklists <= quantile(n_checklists, 0.1)) %>% 
+  ungroup() %>% 
+  mutate(label = "Bottom counties", grp = "Bottom 10%") %>% 
+  select(popup, label, grp)
+# most checklists by state
+ebird_counties_most <- ebird_counties %>% 
+  group_by(state) %>% 
+  top_n(1, n_checklists) %>% 
+  ungroup() %>% 
+  mutate(label = "Top county", grp = "Top county") %>% 
+  select(popup, label, grp)
 
 # leaflet map
 p <- colorFactor(c("#e41a1c", "#4daf4a"), 
-                 domain = c("Fewest checklists", "Most checklists"))
-leaflet(ebird_counties) %>%
+                 domain = c("Bottom counties", "Top county"))
+leaflet() %>%
   addProviderTiles("OpenMapSurfer.Roads") %>% 
   addFullscreenControl() %>% 
-  addPolygons(color = ~ p(label), opacity = 1.0,
+  addPolygons(data = ebird_counties_least, group = "Bottom county",
+              color = ~ p(label), opacity = 1.0,
               weight = 2, smoothFactor = 0.5,
               fillColor = "#555555", fillOpacity = 0.2,
               popup = ~ popup) %>% 
-  addLegend("bottomright", pal = p, values = ~ label,
+  addPolygons(data = ebird_counties_b5, group = "Bottom 5%",
+              color = ~ p(label), opacity = 1.0,
+              weight = 2, smoothFactor = 0.5,
+              fillColor = "#555555", fillOpacity = 0.2,
+              popup = ~ popup) %>% 
+  addPolygons(data = ebird_counties_b10, group = "Bottom 10%",
+              color = ~ p(label), opacity = 1.0,
+              weight = 2, smoothFactor = 0.5,
+              fillColor = "#555555", fillOpacity = 0.2,
+              popup = ~ popup) %>% 
+  addPolygons(data = ebird_counties_most, group = "Top county",
+              color = ~ p(label), opacity = 1.0,
+              weight = 2, smoothFactor = 0.5,
+              fillColor = "#555555", fillOpacity = 0.2,
+              popup = ~ popup) %>% 
+  addLegend("bottomright", pal = p,
+            values = c("Bottom counties", "Top county"),
             title = "Counties with fewest/most eBird checklists",
-            opacity = 1)
+            opacity = 1) %>% 
+  addLayersControl(
+    baseGroups = c("Bottom county", "Bottom 5%", "Bottom 10%", "Top county"),
+    overlayGroups = "Top county",
+    options = layersControlOptions(collapsed = FALSE))
 ```
 
 ```{r save-leaflet, include = FALSE, eval = FALSE}

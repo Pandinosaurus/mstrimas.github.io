@@ -611,5 +611,4 @@ leaflet(hotspots_us) %>%
 
 
 
-<iframe src="/assets/leaflet/ebird-county_hotspots.html" style="border: none; width: 800px; height: 600px"></iframe>
-<a href="/assets/leaflet/ebird-county_hotspots.html" target="_blank"><strong>Fullscreen</strong></a> | Data source: [eBird](http://ebird.org/)
+The fullscreen map is viewable <a href="/assets/leaflet/ebird-county_hotspots.html" target="_blank"><strong>here</strong></a>.

@@ -4,8 +4,8 @@ title: "County eBirding: web scraping and web mapping in R"
 published: true
 excerpt: >
   Scraping the ebird website to find the top hotspot in each county. Covers 
-  scraping with rvest, manipulating spatial data with sf, and making interactive
-  maps with leaflet.
+  scraping data from websites with rvest, manipulating spatial data with sf, and 
+  making interactive maps with leaflet.
 category: r
 tags: r spatial gis ebird
 leaflet: true

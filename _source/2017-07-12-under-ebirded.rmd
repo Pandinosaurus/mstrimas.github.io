@@ -44,7 +44,8 @@ popup_maker <- function(code, name, n_species, n_checklists) {
   link_style <- "target='_blank' style='text-decoration: none;'"
   region_url <- paste0("<strong><a href='http://ebird.org/ebird/subnational2/",
                        code, "?yr=all' ", link_style, ">", name, "</a></strong>")
-  counts <- paste0("<strong>", n_checklists, " checklists</strong> | ", 
+  counts <- paste0("<strong>", format(n_checklists, big.mark = ","), 
+                   " checklists</strong> | ", 
                    n_species, " species")
   paste(region_url, counts, sep = "<br/>")
 }
@@ -56,7 +57,7 @@ ebird_counties <- ebird_counties %>%
 
 # leaflet map
 p <- colorFactor(c("#e41a1c", "#4daf4a"), 
-                 domain = c("Fewest eBird checklists", "Most eBird checklists"))
+                 domain = c("Fewest checklists", "Most checklists"))
 leaflet(ebird_counties) %>%
   addProviderTiles("OpenMapSurfer.Roads") %>% 
   addFullscreenControl() %>% 

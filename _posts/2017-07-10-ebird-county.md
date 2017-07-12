@@ -4,8 +4,8 @@ title: "County eBirding: web scraping and web mapping in R"
 published: true
 excerpt: >
   Scraping the ebird website to find the top hotspot in each county. Covers 
-  scraping password-protected websites with rvest, manipulating spatial data 
-  with sf, and webmapping with leaflet.
+  scraping with rvest, manipulating spatial data with sf, and making interactive
+  maps with leaflet.
 category: r
 tags: r spatial gis ebird
 leaflet: true
@@ -17,7 +17,7 @@ leaflet: true
   <img src="/img/ebird-county/county-map.png" width = "500"/>
 </div>
 
-With this county birding in mind, I decided to make a map of the top eBird hotspot in each county in the US. As always, this is really just an excuse to mess around in R, and this post will cover scraping password protected websites with `rvest` and making interactive web maps with `leaflet`. I'll also be using the new R package, `sf`, for working with spatial data.
+With this county birding in mind, I decided to make a map of the top eBird hotspot in each county in the US. As always, this is really just an excuse to mess around in R, and this post will cover scraping data from websites with `rvest` and making interactive web maps with `leaflet`. I'll also be using the new R package, `sf`, for working with spatial data.
 
 ## Required packages
 
@@ -35,25 +35,6 @@ library(viridis)
 library(here)
 ```
 
-## eBird log in
-
-eBird requires logging in to explore their data. To log in, and stay logged in through a variety of tasks, I'll use `html_session()` to mimic a session in an HTML browser. I grab the log in form with `html_form()`, fill it with a password I've stored as an environment variable so I don't have to show it in this post, and submit the form with `submit_form()`.
-
-
-```r
-ebird_usr <- Sys.getenv("EBIRD_USR")
-ebird_pwd <- Sys.getenv("EBIRD_PWD")
-login_url <- "https://secure.birds.cornell.edu/cassso/login"
-eb_session <- html_session(login_url)
-eb_form <- html_form(eb_session) %>% 
-  `[[`(1) %>% 
-  set_values(username = ebird_usr, 
-             password = ebird_pwd)
-eb_session <- submit_form(eb_session, eb_form)
-```
-
-I'm now logged in to eBird and, like in a browser, I'll stay logged in through all the requests throughout this post. I just use `jump_to()` to move around the various pages of the eBird site. 
-
 ## North American regional stats
 
 For each country in North America, I drill down to the state and county level and scrape eBird to get the number of species seen and the total number of checklists submitted.
@@ -69,11 +50,10 @@ ebird_regions <- data_frame(
   region_name = c("Canada", "United States", "Mexico"),
   region_level = "country")
 # function to get number of counts and checklists per country
-country_data <- function(country, s) {
+country_data <- function(country) {
   # species and checklist  counts
   base_url <- "http://ebird.org/ebird/country/%s?yr=all"
   page <- sprintf(base_url, country) %>% 
-    jump_to(s, .) %>% 
     read_html()
   counts <- html_nodes(page, ".hs-section-count") %>% 
     html_text() %>% 
@@ -83,7 +63,7 @@ country_data <- function(country, s) {
 }
 # apply this to our country list
 ebird_regions <- ebird_regions %>% 
-  mutate(country_df = map(region_code, country_data, s = eb_session)) %>% 
+  mutate(country_df = map(region_code, country_data)) %>% 
   unnest()
 ```
 
@@ -93,12 +73,11 @@ Now I define a function that extracts all the sub-region data within a region. S
 
 
 ```r
-extract_subregion_data <- function(region_code, region_level, s, sleep = 5) {
+extract_subregion_data <- function(region_code, region_level, sleep = 5) {
   Sys.sleep(sleep)
   # species and checklist counts
   base_url <- "http://ebird.org/ebird/%s/%s/regions?yr=all"
   page <- sprintf(base_url, region_level, region_code) %>% 
-    jump_to(s, .) %>% 
     read_html()
   region_stats <- html_table(page)
   # skip this region if no data at sub-region
@@ -133,7 +112,7 @@ I use the above function to grab all the state/province data.
 
 ```r
 state_df <- map_df(ebird_regions$region_code, extract_subregion_data,
-                   region_level = "country", s = eb_session)
+                   region_level = "country")
 ```
 
 ### County data
@@ -143,7 +122,7 @@ And the same for county data. Note that Mexico has no data below state.
 
 ```r
 county_df <- map_df(state_df$region_code, extract_subregion_data,
-                    region_level = "subnational1", s = eb_session)
+                    region_level = "subnational1")
 ```
 
 ### Combine
@@ -161,12 +140,12 @@ Next I want to know the top hotspot in each of these regions. Again, I'll write 
 
 
 ```r
-extract_top_hotspot <- function(region_code, region_level, s, sleep = 5) {
+extract_top_hotspot <- function(region_code, region_level, sleep = 5) {
   Sys.sleep(sleep)
   # species and checklist  counts
   base_url <- "http://ebird.org/ebird/%s/%s/hotspots?yr=all"
   th <- sprintf(base_url, region_level, region_code) %>% 
-    jump_to(s, .) %>% 
+    read_html() %>% 
     html_node("td a") %>% 
     html_attr("href") %>% 
     str_extract("L[0-9]+")
@@ -183,8 +162,7 @@ I call this function for every country, state, and county. This takes awhile...
 
 ```r
 ebird_regions <- ebird_regions %>% 
-  mutate(top_hotspot = map2_chr(region_code, region_level, 
-                                extract_top_hotspot, s = eb_session))
+  mutate(top_hotspot = map2_chr(region_code, region_level, extract_top_hotspot))
 ```
 
 ### Hotspot details
@@ -193,7 +171,7 @@ Each hotspot has its own page from which I extract the number of species seen, n
 
 
 ```r
-extract_hotspot_data <- function(hotspot_id, s, sleep = 5) {
+extract_hotspot_data <- function(hotspot_id, sleep = 5) {
   Sys.sleep(sleep)
   if (is.na(hotspot_id)) {
     return(data_frame())
@@ -201,7 +179,6 @@ extract_hotspot_data <- function(hotspot_id, s, sleep = 5) {
   # species and checklist counts
   base_url <- "http://ebird.org/ebird/hotspot/%s"
   page <- sprintf(base_url, hotspot_id) %>% 
-    jump_to(s, .) %>% 
     read_html()
   # hotspot name
   hotspot_name <- page %>% 
@@ -230,7 +207,7 @@ extract_hotspot_data <- function(hotspot_id, s, sleep = 5) {
 }
 top_hotspots <- ebird_regions$top_hotspot %>% 
   unique() %>% 
-  map_df(extract_hotspot_data, s = eb_session) %>% 
+  map_df(extract_hotspot_data) %>% 
   mutate(hotspot_name = str_replace(hotspot_name, "\\([ .A-z]+ Co\\.\\)", ""),
          hotspot_name = trimws(hotspot_name))
 ```
@@ -294,7 +271,7 @@ bl <- ne_download(scale = 110, type = "admin_0_boundary_lines_land",
                   returnclass = "sf") %>% 
   st_transform(crs = proj)
 #> OGR data source with driver: ESRI Shapefile 
-#> Source: "/var/folders/mg/qh40qmqd7376xn8qxd6hm5lwjyy0h2/T//RtmpJyJGp1", layer: "ne_110m_admin_0_boundary_lines_land"
+#> Source: "/var/folders/mg/qh40qmqd7376xn8qxd6hm5lwjyy0h2/T//RtmpHIrCxz", layer: "ne_110m_admin_0_boundary_lines_land"
 #> with 185 features
 #> It has 4 fields
 #> Integer64 fields read as strings:  scalerank

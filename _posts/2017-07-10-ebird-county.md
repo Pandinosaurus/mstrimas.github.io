@@ -294,7 +294,7 @@ bl <- ne_download(scale = 110, type = "admin_0_boundary_lines_land",
                   returnclass = "sf") %>% 
   st_transform(crs = proj)
 #> OGR data source with driver: ESRI Shapefile 
-#> Source: "/var/folders/mg/qh40qmqd7376xn8qxd6hm5lwjyy0h2/T//Rtmp3X9awX", layer: "ne_110m_admin_0_boundary_lines_land"
+#> Source: "/var/folders/mg/qh40qmqd7376xn8qxd6hm5lwjyy0h2/T//RtmpJyJGp1", layer: "ne_110m_admin_0_boundary_lines_land"
 #> with 185 features
 #> It has 4 fields
 #> Integer64 fields read as strings:  scalerank
@@ -339,11 +339,13 @@ us_counties <- us_counties() %>%
   # adjust counties to match ebird
   mutate(region_code = recode(region_code,
                               "US-MD-510" = "US-MD-005", 
+                              "US-SD-102" = "US-SD-113",
                               "US-AK-230" = "US-AK-232", 
                               "US-AK-105" = "US-AK-232",
                               "US-AK-275" = "US-AK-280", 
                               "US-AK-195" = "US-AK-280",
-                              "US-AK-198" = "US-AK-201")) %>% 
+                              "US-AK-198" = "US-AK-201",
+                              "US-AK-158" = "US-AK-102")) %>% 
   # combine some counties together
   group_by(region_code, state) %>% 
   # note that summarise calls st_union() on the geometries

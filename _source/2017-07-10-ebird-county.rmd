@@ -334,11 +334,13 @@ us_counties <- us_counties() %>%
   # adjust counties to match ebird
   mutate(region_code = recode(region_code,
                               "US-MD-510" = "US-MD-005", 
+                              "US-SD-102" = "US-SD-113",
                               "US-AK-230" = "US-AK-232", 
                               "US-AK-105" = "US-AK-232",
                               "US-AK-275" = "US-AK-280", 
                               "US-AK-195" = "US-AK-280",
-                              "US-AK-198" = "US-AK-201")) %>% 
+                              "US-AK-198" = "US-AK-201",
+                              "US-AK-158" = "US-AK-102")) %>% 
   # combine some counties together
   group_by(region_code, state) %>% 
   # note that summarise calls st_union() on the geometries

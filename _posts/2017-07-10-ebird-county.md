@@ -294,7 +294,7 @@ bl <- ne_download(scale = 110, type = "admin_0_boundary_lines_land",
                   returnclass = "sf") %>% 
   st_transform(crs = proj)
 #> OGR data source with driver: ESRI Shapefile 
-#> Source: "/var/folders/mg/qh40qmqd7376xn8qxd6hm5lwjyy0h2/T//RtmpzgwKk1", layer: "ne_110m_admin_0_boundary_lines_land"
+#> Source: "/var/folders/mg/qh40qmqd7376xn8qxd6hm5lwjyy0h2/T//Rtmp3X9awX", layer: "ne_110m_admin_0_boundary_lines_land"
 #> with 185 features
 #> It has 4 fields
 #> Integer64 fields read as strings:  scalerank
@@ -482,6 +482,8 @@ ebird_counties <- ebird_regions %>%
          top_hotspot, hotspot_name)
 ```
 
+
+
 ### ggplot2 county map
 
 Finally, I produce a choropleth map of species seen in each county using `ggplot2`.
@@ -611,4 +613,3 @@ leaflet(hotspots_us) %>%
 
 <iframe src="/assets/leaflet/ebird-county_hotspots.html" style="border: none; width: 800px; height: 600px"></iframe>
 <a href="/assets/leaflet/ebird-county_hotspots.html" target="_blank"><strong>Fullscreen</strong></a> | Data source: [eBird](http://ebird.org/)
-

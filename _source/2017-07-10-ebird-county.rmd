@@ -479,6 +479,11 @@ ebird_counties <- ebird_regions %>%
          top_hotspot, hotspot_name)
 ```
 
+```{r save-full, echo = FALSE}
+saveRDS(ebird_counties, 
+        here("_source", "data", "ebird-county", "ebird-county_sf.rds"))
+```
+
 ### ggplot2 county map
 
 Finally, I produce a choropleth map of species seen in each county using `ggplot2`.
@@ -606,4 +611,3 @@ here("assets", "leaflet", "ebird-county_hotspots.html") %>%
 
 <iframe src="/assets/leaflet/ebird-county_hotspots.html" style="border: none; width: 800px; height: 600px"></iframe>
 <a href="/assets/leaflet/ebird-county_hotspots.html" target="_blank"><strong>Fullscreen</strong></a> | Data source: [eBird](http://ebird.org/)
-

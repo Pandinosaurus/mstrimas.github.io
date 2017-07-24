@@ -119,4 +119,4 @@ here("assets", "leaflet", "under-ebirded_density.html") %>%
 <iframe src="/assets/leaflet/under-ebirded_density.html" style="border: none; width: 800px; height: 600px"></iframe>
 <a href="/assets/leaflet/under-ebirded_density.html" target="_blank"><strong>Fullscreen</strong></a> | Data source: [eBird](http://ebird.org/)
 
-If you're interested in the unnormalized version, ranking counties by the raw number of checklists, take a [look at this map](/assets/leaflet/under-ebirded.html). More importantly, if you're a birder and live near one of these counties, get out there and submit some checklists!
+If you're interested in the unnormalized version, ranking counties by the raw number of checklists, take a [look at this map](/assets/leaflet/under-ebirded.html). More importantly, if you're a birder and live near one of these counties, get out there and submit some checklists, you might find something interesting!

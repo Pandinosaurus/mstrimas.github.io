@@ -13,7 +13,9 @@ leaflet: true
 
 One of the fondest memories of my life was spending the summer of 2012 and winter of 2013 working in the Yukon on the [Kluane Red Squirrel Project (KRSP)](http://redsquirrel.biology.ualberta.ca/). KRSP is a long-term, large-scale field experiment studying the effects of food availability on the evolution and ecology of red squirrels. While working on the project, I spent each day outside, walking around the boreal forest monitoring red squirrels on one of the project's study grids. The location was beautiful, empty, and wild, I came to love the fiesty little red squirrels, and I worked with a great crew of fellow squirrelers!
 
-!(Kluane Mountains)[/img/twitter-mast/kluane.jpg]
+<div style="text-align: center">
+  <img src="/img/twitter-mast/kluane.jpg"/>
+</div>
 
 The squirrels mostly feed on the cones produced by white spruce trees, and this system is particularly interesting because spruce trees exhibit masting behaviour: the produce almost no cones in most years, but every few years they produce huge numbers of cones. This masting is often synchronized over large areas. The result is that squirrels experience massive inter-annual fluctuations in the availability of food.
 

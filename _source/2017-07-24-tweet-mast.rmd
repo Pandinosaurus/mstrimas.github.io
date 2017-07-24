@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Twitter citizen science: mapping spruce masting events with Twitter"
+title: "Twitter citizen science: mapping spruce masting events"
 published: true
 excerpt: >
   In this post, I the use the Twitter API to access geocoded tweets on spruce 

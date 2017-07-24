@@ -17,7 +17,7 @@ One of the fondest memories of my life was spending the summer of 2012 and winte
   <img src="/img/twitter-mast/kluane.jpg"/>
 </div>
 
-The squirrels mostly feed on the cones produced by white spruce trees, and this system is particularly interesting because spruce trees exhibit masting behaviour: the produce almost no cones in most years, but every few years they produce huge numbers of cones. This masting is often synchronized over large areas. The result is that squirrels experience massive inter-annual fluctuations in the availability of food.
+The squirrels mostly feed on the cones produced by white spruce trees, and this system is particularly interesting because spruce trees exhibit masting behaviour: they produce almost no cones in most years, but every few years they produce huge numbers of cones. This masting is often synchronized over large areas. The result is that squirrels experience massive inter-annual fluctuations in the availability of food.
 
 One of the KRSP PIs, [Andrew McAdam](http://www.mcadamlab.ca/), recently had a cool idea: use Twitter to crowd source data on where spruce trees are masting this year. He suggested using the hashtags [#SpruceMast2017Yes ](https://twitter.com/hashtag/SpruceMast2017Yes?src=hash) and [#SpruceMast2017No ](https://twitter.com/hashtag/SpruceMast2017No?src=hash), combined with geo tagging tweets, to identify whether spruce trees are masting or not in your area. I think this is a cool idea for quickly engaging citizen scientists.
 
@@ -39,7 +39,7 @@ library(leaflet)
 
 ## Extract Twitter data
 
-The R package `rtweet` provides access to the Twitter API, making it easy to grab tweets based on a search query, such as a hashtag. Fortunately, the data frame returned by `search_tweets()` contains the locataion assigned to the tweet in the form of the city (e.g. Guelph, ON). I then geocode these locations use `ggmap::geocode()` to turn these city names into coordinates.
+The R package `rtweet` provides access to the Twitter API, making it easy to grab tweets based on a search query, such as a hashtag. Fortunately, the data frame returned by `search_tweets()` contains the locataion assigned to the tweet in the form of the city (e.g. Guelph, ON). I then geocode these locations using `ggmap::geocode()` to turn these city names into coordinates.
 
 Note that there is some initial set up here to get a Twitter API key and store it as an R environment variable. This is covered nicely in the `rtweet` [documentation](http://rtweet.info/articles/auth.html).
 
@@ -68,7 +68,7 @@ tweet_mast_no <- search_tweets("#SpruceMast2017No") %>%
 tweet_mast <- bind_rows(tweet_mast_yes, tweet_mast_no)
 ```
 
-Next I turn use the latitude and longitude to turn these data into a spatial object with the `sf` package.
+Next I use the latitude and longitude to turn these data into a spatial object with the `sf` package.
 
 
 ```r
@@ -77,7 +77,7 @@ tweet_mast <- st_as_sf(tweet_mast, coords = c("lon", "lat"), crs = 4326)
 
 ## Map 
 
-Now that I have the data prepared, I put them on a couple maps, one static and one interactive. First I grab a map of North American States and provinces.
+Now that I have the data prepared, I put them on a couple maps, one static and one interactive. First I grab boundaries of North American States and provinces.
 
 
 ```r
@@ -115,7 +115,7 @@ ggplot() +
 
 ### Interactive map (Leaflet)
 
-Finally, I use the `leaflet` package to make an interactive map of the same data. First, I write a function that gets th
+Finally, I use the `leaflet` package to make an interactive map of the same data. First, I write a function that generates HTML for the popups.
 
 
 ```r
@@ -126,6 +126,8 @@ popup_html <- function(text, place) {
 }
 tweet_mast <- mutate(tweet_mast, popup = popup_html(text, place))
 ```
+
+Now I produce the map.
 
 
 ```r

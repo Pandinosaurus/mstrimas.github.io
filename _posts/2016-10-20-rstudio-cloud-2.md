@@ -93,7 +93,7 @@ For Windows users, use the [installer provided by AWS](http://docs.aws.amazon.co
 
 ### EC2 CLI install
 
-Follow the instructions in part 1 to [connect to your EC2 instance via SSH](r/rstudio-cloud-1/#connecting-to-an-ec2-instance-via-ssh-optional). Then run the following command to install the CLI:
+Follow the instructions in part 1 to [connect to your EC2 instance via SSH](/r/rstudio-cloud-1/#connecting-to-an-ec2-instance-via-ssh-optional). Then run the following command to install the CLI:
 
 ```bash
 sudo apt install awscli

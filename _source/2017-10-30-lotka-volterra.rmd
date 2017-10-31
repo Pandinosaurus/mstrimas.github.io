@@ -23,7 +23,7 @@ library(FME)
 
 ## Lotka-Volterra model
 
-The Lotka-Volterra model describes the dynamics of a two-species system in which one is a predator and the other is its prey. The equations governing the dynamics of the prey (with density \\( x \\)) and predator (with density \\( y$ \\) are:
+The Lotka-Volterra model describes the dynamics of a two-species system in which one is a predator and the other is its prey. The equations governing the dynamics of the prey (with density \\( x \\)) and predator (with density \\( y \\) are:
 
 $$
 \begin{aligned}
@@ -218,7 +218,7 @@ $$
 
 The function `sensFun()` is used to numerically estimate these sensitivity functions at a series of time steps. The arguments `sensvar` and `senspar` are used to define which variables and parameters, respectively, will be investigated in the sensitivity analysis. By default, all variables are parameters are included. The arguments `varscale` and `parscale` define the scaling factors; however, for now, I'll leave them blank, which sets them to the underlying quantities as in the above equation.
 
-In practice, `sensFun()` works by applying a small perturbation, \\( \delta_j \\), to parameter \\( j \\), solving the model for a range of time steps to determine \\( v_i \\), then taking the ratio of the changes to the parameters and variables. The perturbation is defined by the argument `tiny` as \\( \delta_j = \text{max}(tiny, |tiny * p_j|) \\). `tiny` defaults to \\( 10^{-8} \\).
+In practice, `sensFun()` works by applying a small perturbation, \\( \delta_j \\), to parameter \\( j \\), solving the model for a range of time steps to determine \\( v_i \\), then taking the ratio of the changes to the parameters and variables. The perturbation is defined by the argument `tiny` as \\( \delta_j = \text{max}(tiny, tiny * p_j) \\). `tiny` defaults to \\( 10^{-8} \\).
 
 To test that `sensFun()` is doing what I think it is, I'll implement a version of it. For simplicity, I'll only consider the variable \\( x \\) (prey density):
 

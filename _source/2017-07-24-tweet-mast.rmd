@@ -44,9 +44,8 @@ Note that there is some initial set up here to get a Twitter API key and store i
 
 ```{r twitter-data}
 # masting
-tweet_mast_yes <- search_tweets("#SpruceMast2017Yes") %>% 
-  # exclude retweets
-  filter(is.na(retweet_status_id)) %>% 
+tweet_mast_yes <- search_tweets("#SpruceMast2017Yes", type = "mixed",
+                                usr = FALSE, include_rts = FALSE) %>% 
   # exlude tweets without location
   filter(!is.na(place_full_name)) %>% 
   # exlcude tweets with no and yes

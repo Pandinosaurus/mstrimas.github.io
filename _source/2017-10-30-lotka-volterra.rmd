@@ -23,7 +23,7 @@ library(FME)
 
 ## Lotka-Volterra model
 
-The Lotka-Volterra model describes the dynamics of a two-species system in which one is a predator and the other is its prey. The equations governing the dynamics of the prey (with density $x$) and predator (with density $y$) are:
+The Lotka-Volterra model describes the dynamics of a two-species system in which one is a predator and the other is its prey. The equations governing the dynamics of the prey (with density \\( x \\)) and predator (with density \\( y$ \\) are:
 
 $$
 \begin{aligned}
@@ -32,7 +32,7 @@ $$
 \end{aligned}
 $$
 
-where $\alpha$ is the (exponential) growth rate of the prey in the absence of predation, $\beta$ is the predation rate or predator search efficiency, $\delta$ describes the predator food conversion efficiency, and $\gamma$ is the predator mortality.
+where \\( \alpha \\) is the (exponential) growth rate of the prey in the absence of predation, \\( \beta \\) is the predation rate or predator search efficiency, \\( \delta \\) describes the predator food conversion efficiency, and \\( \gamma \\) is the predator mortality.
 
 ## Solving the ODE
 
@@ -105,7 +105,7 @@ A sensitivity analysis examines how changes in the parameters underlying a model
 
 According to the `FME` vingette, in a global sensitivity analysis certain parameters (the sensitivity parameters) are varied over a large range, and the effect on model output variables (the sensitivity variables) is measured. To accomplish this, a distribution is defined for each sensitivity parameter and the model is run multiple times, each time drawing values for the sensistivity parameters from their distribution. The sensitivity variables are recorded for each iteration over a range of times. The function `sensRange()` carries out global sensitivity analyses. 
 
-I'll look at the sensitivity of the populations to the growth rate ($\alpha$) and the predation rate ($\beta$). Defining the sensitivity parameter distributions requires providing a data frame in which the first column is the minimum value, the second column the maximum, and the row names are the parameter names.
+I'll look at the sensitivity of the populations to the growth rate (\\( \alpha \\)) and the predation rate (\\( \beta \\)). Defining the sensitivity parameter distributions requires providing a data frame in which the first column is the minimum value, the second column the maximum, and the row names are the parameter names.
 
 ```{r par-ranges}
 par_ranges <- data.frame(min = c(0.75, 0.15),
@@ -114,7 +114,7 @@ par_ranges <- data.frame(min = c(0.75, 0.15),
 par_ranges
 ```
 
-Now I use `sensRange()` to solve the models over the range of parameters. The argument `dist = "grid"` sets the sensitivity parameter distribution to a regular grid of values, `sensvar` defines which variables are the sensitivity variables (i.e. the ones whose time series will be returned in the output), `num` is the number of iterations and therefore the number of different sensistivity parameter values (note that if there are $k$ sensitivity parameters, `num` must have an integer $k$th root), and times is the time series over which to evaluate the model.
+Now I use `sensRange()` to solve the models over the range of parameters. The argument `dist = "grid"` sets the sensitivity parameter distribution to a regular grid of values, `sensvar` defines which variables are the sensitivity variables (i.e. the ones whose time series will be returned in the output), `num` is the number of iterations and therefore the number of different sensistivity parameter values (note that if there are \\( k \\) sensitivity parameters, `num` must have an integer \\( k \\)th root), and times is the time series over which to evaluate the model.
 
 The output of this function is a data frame with rows corresponding to the different sensitivity parameter values and columns corresponding to the combination of time steps and sensitivity variables. So, for `n` time steps, there are `n` columns for each sensitivity variable. First I run a simple sensitivity analysis to aid examination of the output.
 
@@ -125,7 +125,7 @@ lv_glob_sens <- sensRange(func = lv_model, parms = pars, dist = "grid",
 lv_glob_sens
 ```
 
-Here variables such as `x0.5` refer to the values of $x$ at $t=0.5$. `FME` provides a `plot()` method for `sensRange` objects, which adds envelopes to the variables showing the range and mean ± standard deviation. Now I run a more realistic sensitivity analysis and produce the plots. Note that `summary()` must be called before `plot()` to get the desired plots.
+Here variables such as `x0.5` refer to the values of \\( x \\) at \\( t=0.5 \\). `FME` provides a `plot()` method for `sensRange` objects, which adds envelopes to the variables showing the range and mean ± standard deviation. Now I run a more realistic sensitivity analysis and produce the plots. Note that `summary()` must be called before `plot()` to get the desired plots.
 
 ```{r glob-sense-real}
 lv_glob_sens <- sensRange(func = lv_model, parms = pars, dist = "grid",
@@ -204,13 +204,13 @@ ggplot(lv_sens_summ, aes(x = t, group = species)) +
 
 ### Local sensitivity analysis
 
-According to the `FME` vingette, in a local sensitivity analysis, "the effect of a parameter value in a very small region near its nominal value is estimated". The method used by `FME` is to calculate a matrix of **sensitivity functions**, $S_{i,j}$, defined by:
+According to the `FME` vingette, in a local sensitivity analysis, "the effect of a parameter value in a very small region near its nominal value is estimated". The method used by `FME` is to calculate a matrix of **sensitivity functions**, \\( S_{i,j} \\), defined by:
 
 $$
 S_{i,j} = f(v_i, p_i) = \frac{dv_i}{dp_j} \frac{s_{p_j}}{s_{v_i}}
 $$
 
-where $v_i$ is a sensitivity variable $i$ (which is dependent on time $t$), $p_j$ is sensitivity parameter $j$, and $s_{v_i}$ and $s_{p_j}$ are scaling factors for variables and parameters, respectively. By default, `FME` takes the scaling values to be equal to the underlying quantities, in which case the above equation simplifies to:
+where \\( v_i \\) is a sensitivity variable \\( i \\) (which is dependent on time \\( t \\)), \\( p_j \\) is sensitivity parameter \\( j \\), and \\( s_{v_i} \\) and \\( s_{p_j} \\) are scaling factors for variables and parameters, respectively. By default, `FME` takes the scaling values to be equal to the underlying quantities, in which case the above equation simplifies to:
 
 $$
 S_{i,j} = f(v_i, p_i) = \frac{dv_i}{dp_j} \frac{p_j}{v_i}
@@ -218,9 +218,9 @@ $$
 
 The function `sensFun()` is used to numerically estimate these sensitivity functions at a series of time steps. The arguments `sensvar` and `senspar` are used to define which variables and parameters, respectively, will be investigated in the sensitivity analysis. By default, all variables are parameters are included. The arguments `varscale` and `parscale` define the scaling factors; however, for now, I'll leave them blank, which sets them to the underlying quantities as in the above equation.
 
-In practice, `sensFun()` works by applying a small perturbation, $\delta_j$, to parameter $j$, solving the model for a range of time steps to determine $v_i$, then taking the ratio of the changes to the parameters and variables. The perturbation is defined by the argument `tiny` as $\delta_j = \text{max}(tiny, |tiny * p_j|)$. `tiny` defaults to $10^{-8}$
+In practice, `sensFun()` works by applying a small perturbation, \\( \delta_j \\), to parameter \\( j \\), solving the model for a range of time steps to determine \\( v_i \\), then taking the ratio of the changes to the parameters and variables. The perturbation is defined by the argument `tiny` as \\( \delta_j = \text{max}(tiny, |tiny * p_j|) \\). `tiny` defaults to \\( 10^{-8} \\).
 
-To test that `sensFun()` is doing what I think it is, I'll implement a version of it. For simplicity, I'll only consider the variable $x$ (prey density):
+To test that `sensFun()` is doing what I think it is, I'll implement a version of it. For simplicity, I'll only consider the variable \\( x \\) (prey density):
 
 ```{r sf-simple}
 sen_fun <- function(fun, pars, times, tiny = 1e-8) {
@@ -254,7 +254,7 @@ sen_fun(lv_model, pars = test_pars, times = 0:2)
 sensFun(lv_model, parms = test_pars, sensvar = "x", times = 0:2)
 ```
 
-A perfect match! Now that I know what `sensFun()` is actually doing, I'll put it to use to solve the original LV model. One difference here is that I'll consider both variables as sensitivity variables and the results for each variable will be stacked rowwise. In addition, in the `FME` documentation, $s_{v_i}$ is set to 1, which is on the order of the actual variable values, but has the benefit of being constant over time. I'll do the same here.
+A perfect match! Now that I know what `sensFun()` is actually doing, I'll put it to use to solve the original LV model. One difference here is that I'll consider both variables as sensitivity variables and the results for each variable will be stacked rowwise. In addition, in the `FME` documentation, \\( s_{v_i} \\) is set to 1, which is on the order of the actual variable values, but has the benefit of being constant over time. I'll do the same here.
 
 ```{r loc-sens}
 lv_loc_sens <- sensFun(lv_model, parms = pars, varscale = 1, 
@@ -269,7 +269,7 @@ tail(lv_loc_sens)
 summary(lv_loc_sens)
 ```
 
-$\gamma$ (predator mortality rate) and $\beta$ (predator search efficiency) have the largest values for the sensitivity function, on average, suggesting that this model is most sensitive to these parameters. There is also plot method for the output of `sensFun()`, which plots the sensitivity functions as time series.
+\\( \gamma \\) (predator mortality rate) and \\( \beta \\) (predator search efficiency) have the largest values for the sensitivity function, on average, suggesting that this model is most sensitive to these parameters. There is also plot method for the output of `sensFun()`, which plots the sensitivity functions as time series.
 
 ```{r loc-base-plot}
 plot(lv_loc_sens)
@@ -291,7 +291,7 @@ ggplot(lv_loc_long, aes(x = x, y = sensitivity)) +
   theme(legend.position = "bottom")
 ```
 
-Clearly this model is particularly sensitive to $\gamma$. Furthermore, this sensitivity shows peaks every 16 seconds or so, which is the periodicity of the original dynamics. To see what's going on here, I'll take a look at what happens to the two species when I increase $\gamma$ by 1%:
+Clearly this model is particularly sensitive to \\( \gamma \\). Furthermore, this sensitivity shows peaks every 16 seconds or so, which is the periodicity of the original dynamics. To see what's going on here, I'll take a look at what happens to the two species when I increase \\( \gamma \\) by 1%:
  
 ```{r gamma-pert}
 # original model
@@ -319,4 +319,4 @@ ggplot(bind_rows(lv_results, lv_results_gamma), aes(x = time, y = pop)) +
   theme(legend.position = "bottom")
 ```
 
-Increasing $\gamma$ leads to a time dependent period to the dynamics. As a result, the two models initially overlap, but they become increasingly out of sync over time. This explains both the periodicity of the sensitivity function and the increasing amplitude.
+Increasing \\( \gamma \\) leads to a time dependent period to the dynamics. As a result, the two models initially overlap, but they become increasingly out of sync over time. This explains both the periodicity of the sensitivity function and the increasing amplitude.

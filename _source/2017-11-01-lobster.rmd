@@ -16,8 +16,7 @@ Many of my weekends this past summer were spent exploring the coast of New Engla
 
 I found data on annual lobster catch by state going back to 1950 on the [NOAA website](https://www.st.nmfs.noaa.gov/commercial-fisheries/commercial-landings/annual-landings/index). In addition to the data on the [American Lobster](https://en.wikipedia.org/wiki/American_lobster), NOAA provides catch statistics for three other lesser known species in the lower 48.
 
-
-```r
+```{r packages}
 library(tidyverse)
 library(sf)
 library(rnaturalearth)
@@ -29,8 +28,7 @@ library(here)
 
 I'll start by loading and tidying up the data from NOAA. Unfortunately, there doesn't seem to be an easy way to grab these data programatically, so I had to manually download files for each species.
 
-
-```r
+```{r load-data}
 cols <- c("year", "state", "species", "tons", "pounds", "value")
 lobsters <- here("_source/data/lobster/") %>% 
   list.files("^lobster", full.names = TRUE) %>% 
@@ -53,8 +51,7 @@ lobsters <- here("_source/data/lobster/") %>%
 
 First, I'll look at the temporal trend by species.
 
-
-```r
+```{r trend, fig.width=9}
 lobsters_trend <- lobsters %>% 
   group_by(year, species) %>% 
   select(-state) %>% 
@@ -70,12 +67,9 @@ ggplot(lobsters_trend, aes(year, tons / 1000)) +
   theme(legend.position = "bottom")
 ```
 
-<img src="/figures//lobster_trend-1.svg" title="plot of chunk trend" alt="plot of chunk trend" style="display: block; margin: auto;" />
-
 Clearly the American Lobster is the most commercially important species in the US. There is a small Caribbean Spiny Lobster fishery, but the catch for the other two species is insignificant compared to the American Lobster. Next I'll look at catch of American Lobster by state over time.
 
-
-```r
+```{r states, fig.width=9}
 top_9_states <- lobsters %>% 
   filter(species == "American Lobster") %>% 
   group_by(state) %>% 
@@ -99,16 +93,13 @@ ggplot(lobster_state, aes(year, tons / 1000)) +
   theme(legend.position = "bottom")
 ```
 
-<img src="/figures//lobster_states-1.svg" title="plot of chunk states" alt="plot of chunk states" style="display: block; margin: auto;" />
-
 Again, no surprise here, Maine is the biggest lobster producer in the US; however, it is interesting to note that it's only since the mid-1980s that lobster production has really exploded in Maine, leaving all the other states behind.
 
 Finally, I'll show the spatial and temporal trend on an animated map. I'll zoom in on the Northeastern US, since these are the only states producing American Lobsters and I'll use a log scale since Maine is so dominant. 
 
 <div id="map"></div>
 
-
-```r
+```{r map, eval=FALSE}
 # state boundaries
 states <- ne_states(iso_a2 = c("US", "CA"), returnclass = "sf") %>% 
   filter(!postal %in% c("AK", "HI")) %>% 

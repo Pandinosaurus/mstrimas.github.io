@@ -9,6 +9,8 @@ excerpt: >
   ggplot2, dplyr, and tidyr.
 category: r
 tags: r spatial gis
+editor_options: 
+  chunk_output_type: console
 ---
 
 Traditionally the package `sp` has been the standard for storing spatial data in R. This package (along with others such as `raster`) help make R a powerful GIS. However, `sp`'s days may be numbered. I've recently been playing around with the new [R package `sf`](https://github.com/edzer/sfr) which is meant to supersede `sp`. This package provides native support for [Simple Features](https://en.wikipedia.org/wiki/Simple_Features) in R, can perform topological operations by interfacing with [GEOS](https://trac.osgeo.org/geos), and can read and write to a wide variety of spatial file formats courtesy of [GDAL](http://www.gdal.org/).
@@ -203,6 +205,7 @@ As with normal data frame, grouped filtering and mutating can be performed on `s
 nc_groups %>% 
   select(group, AREA) %>% 
   group_by(group) %>% 
+  ungroup() %>% 
   mutate(area_prop = sum(AREA)) %>% 
   as_tibble()
 ```
@@ -229,9 +232,8 @@ Let's start by scraping some county-level population data from Wikipedia.
 ```{r population}
 pop <- "https://en.wikipedia.org/wiki/List_of_counties_in_North_Carolina" %>% 
   read_html() %>% 
-  html_nodes(xpath = '//*[@id="mw-content-text"]/table[2]') %>% 
-  html_table() %>% 
-  `[[`(1) %>% 
+  html_table(fill = TRUE) %>% 
+  `[[`(2) %>% 
   select(County, starts_with("Population")) %>% 
   set_names(c("county", "population")) %>% 
   mutate(county = gsub(" County", "", county),

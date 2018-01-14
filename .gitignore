@@ -13,3 +13,4 @@ package.json
 
 _source/cache/
 _source/data/ebird-county/CAN_adm.gpkg
+_source/data/snowfall

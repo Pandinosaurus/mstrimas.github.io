@@ -233,7 +233,7 @@ im.convert(frames, f_animation, extra.opts = "-resize 40%")
 setwd(here("img", "snowfall"))
 f_animation <- here("img", "snowfall", "snowfall_to_20180112_fullsize.gif")
 ani.options(interval = 0.1)
-im.convert(frames, f_animation)
+im.convert(frames, f_animation, extra.opts = "-resize 80%")
 ```
 
-View a large (~60Mb) version of the animation [here](/img/snowfall/snowfall_to_20180112_fullsize.gif).
+View a large (~43Mb) version of the animation [here](/img/snowfall/snowfall_to_20180112_fullsize.gif).

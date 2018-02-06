@@ -5,8 +5,8 @@ published: true
 excerpt: >
   Using eBird data to create maps of birding effort and the least birded 
   locations globally.
-category: r
-tags: r gis
+category: ebird
+tags: r gis ebird
 leaflet: true
 splash: "/img/inaccessibility/ebird-inaccessibility_distance-to-checklist.png"
 editor_options: 

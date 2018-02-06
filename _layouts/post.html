@@ -12,6 +12,11 @@ layout: default
       </a>
     </p>
   </header>
+  {% if page.splash != null %}
+  <figure class="full-width">
+    <img src="{{ page.splash }}" height=500 style="display: block; margin: auto; /">
+  </figure>
+  {% endif %}
   <article class="post-content">
     {{ content }}
   </article>

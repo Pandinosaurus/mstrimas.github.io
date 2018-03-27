@@ -160,7 +160,7 @@ Not perfect, it still clearly looks like this range map came from a raster, but 
 ```{r animation, include = FALSE}
 library(animation)
 library(here)
-td <- "~/Desktop"#tempdir()
+td <- tempdir()
 # frame 1: raster
 png(file.path(td, "smooth-1.png"), width = 600, height = 600)
 par(mar = c(0, 0, 2, 0), mfrow = c(1, 1))

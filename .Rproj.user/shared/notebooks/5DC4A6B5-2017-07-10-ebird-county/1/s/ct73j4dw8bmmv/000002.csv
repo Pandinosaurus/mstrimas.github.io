@@ -1,4 +1,0 @@
-"0","mx_states <- na_states %>% "
-"0","  filter(country == ""MX"") %>% "
-"0","  mutate(area = st_area(.) %>% as.numeric()) %>% "
-"0","  select(region_code, state, area)"

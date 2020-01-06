@@ -1,3 +1,0 @@
-"0","na_counties <- rbind(us_counties %>% st_transform(crs = 4326), "
-"0","                     ca_counties %>% st_transform(crs = 4326),"
-"0","                     mx_states %>% st_transform(crs = 4326))"

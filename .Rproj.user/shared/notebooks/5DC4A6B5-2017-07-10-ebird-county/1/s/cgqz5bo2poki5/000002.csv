@@ -1,7 +1,0 @@
-"0","ebird_counties <- ebird_regions %>% "
-"0","  filter("
-"0","    (region_level == ""subnational2"" & str_detect(region_code, ""^US|CA"")) | "
-"0","      (region_level == ""subnational1"" & str_detect(region_code, ""^MX""))) %>% "
-"0","  inner_join(na_counties, ., by = ""region_code"") %>% "
-"0","  select(region_code, state, region_name, area, n_species, n_checklists,"
-"0","         top_hotspot, hotspot_name)"

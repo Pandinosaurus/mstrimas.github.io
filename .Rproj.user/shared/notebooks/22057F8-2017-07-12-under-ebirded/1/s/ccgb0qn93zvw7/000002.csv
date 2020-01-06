@@ -1,0 +1,3 @@
+"0","lib <- here(""assets"", ""leaflet"", ""lib"")"
+"0","here(""assets"", ""leaflet"", ""under-ebirded.html"") %>% "
+"0","  htmlwidgets::saveWidget(x, ., libdir = lib)"

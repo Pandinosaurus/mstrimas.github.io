@@ -1,0 +1,8 @@
+"0","# regions"
+"0","ebird_regions <- here(""_source"", ""data"", ""ebird-county"", "
+"0","                      ""ebird_region-stats.rds"") %>% "
+"0","  readRDS()"
+"0","# hotspots"
+"0","top_hotspots <- here(""_source"", ""data"", ""ebird-county"", "
+"0","                     ""ebird_top-hotspots.rds"") %>% "
+"0","  readRDS()"
